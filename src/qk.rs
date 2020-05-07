@@ -707,9 +707,6 @@ mod test {
         x.powf(alpha) * x.recip().ln()
     }
 
-    fn f2(x: f64, alpha: f64) -> f64 {
-        4.0f64.powi(4) / ((x - PI / 4.0).powi(2) + 16f64.powf(-alpha))
-    }
     fn f3(x: f64, alpha: f64) -> f64 {
         (2f64.powf(alpha) * x.sin()).cos()
     }

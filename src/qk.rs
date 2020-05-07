@@ -3,14 +3,14 @@ use num::Float;
 fn rescale_error(err: f64, res_abs: f64, res_asc: f64) -> f64 {
     let mut scaled_err = err.abs();
 
-    if res_asc != 0.0 && err != 0.0 {
-        let scale = (200.0 * err / res_asc).powf(1.5);
+    if res_asc != 0.0 && scaled_err != 0.0 {
+        let scale = (200.0 * scaled_err / res_asc).powf(1.5);
 
-        if scale < 1.0 {
-            scaled_err = res_asc * scale;
+        scaled_err = if scale < 1.0 {
+            res_asc * scale
         } else {
-            scaled_err = res_asc;
-        }
+            res_asc
+        };
     }
 
     if res_abs > f64::MIN_POSITIVE / (50.0 * f64::EPSILON) {
@@ -46,8 +46,6 @@ pub fn qk<F>(
 where
     F: Fn(f64) -> f64,
 {
-    let half = 0.5;
-
     let n: usize = xgk.len();
 
     let mut fv1: Vec<f64> = vec![0.0; n - 1];
@@ -76,9 +74,9 @@ where
         let fsum = fval1 + fval2;
         fv1[jtw] = fval1;
         fv2[jtw] = fval2;
-        res_gauss = res_gauss + *gaussn * fsum;
-        res_kronrod = res_kronrod + wgk[jtw] * fsum;
-        res_abs = fval2 + wgk[jtw] * (fval1.abs() + fval2.abs());
+        res_gauss += *gaussn * fsum;
+        res_kronrod += wgk[jtw] * fsum;
+        res_abs += wgk[jtw] * (fval1.abs() + fval2.abs());
     }
 
     for j in 0..(n / 2) {
@@ -88,30 +86,29 @@ where
         let fval2 = func(center + abscissa);
         fv1[jtwm1] = fval1;
         fv2[jtwm1] = fval2;
-        res_kronrod = res_kronrod + wgk[jtwm1] * (fval1 + fval2);
-        res_abs = res_abs + wgk[jtwm1] * (fval1.abs() + fval2.abs());
+        res_kronrod += wgk[jtwm1] * (fval1 + fval2);
+        res_abs += wgk[jtwm1] * (fval1.abs() + fval2.abs());
     }
 
-    let mean = res_kronrod * half;
+    let mean = res_kronrod * 0.5;
     res_asc = wgk[n - 1] * (f_center - mean).abs();
 
     for j in 0..(n - 1) {
-        res_asc = res_asc + wgk[j] * ((fv1[j] - mean).abs() + (fv2[j] - mean).abs());
+        res_asc += wgk[j] * ((fv1[j] - mean).abs() + (fv2[j] - mean).abs());
     }
 
     // scale by the width of the integration region
     let err = (res_kronrod - res_gauss) * half_len;
 
-    res_kronrod = res_kronrod * half_len;
-    res_abs = res_abs * abs_half_len;
-    res_asc = res_asc * abs_half_len;
+    res_kronrod *= half_len;
+    res_abs *= abs_half_len;
+    res_asc *= abs_half_len;
 
-    let result = res_kronrod;
     *resabs = res_abs;
     *resasc = res_asc;
     *abserr = rescale_error(err, res_abs, res_asc);
 
-    result
+    res_kronrod
 }
 
 /// Compute the integral of of `f` from `a` to `b` using
@@ -698,4 +695,502 @@ where
         *abserr = (f64::EPSILON * 50.0 * (*resabs)).max(*abserr);
     }
     result
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::test_utils::test_rel;
+    use std::f64::consts::PI;
+
+    fn f1(x: f64, alpha: f64) -> f64 {
+        x.powf(alpha) * x.recip().ln()
+    }
+
+    fn f2(x: f64, alpha: f64) -> f64 {
+        4.0f64.powi(4) / ((x - PI / 4.0).powi(2) + 16f64.powf(-alpha))
+    }
+    fn f3(x: f64, alpha: f64) -> f64 {
+        (2f64.powf(alpha) * x.sin()).cos()
+    }
+
+    #[test]
+    fn test_qk15_smooth_pos() {
+        let mut abserr = 0.0;
+        let mut resabs = 0.0;
+        let mut resasc = 0.0;
+        let exp_result = 7.716049357767090777E-02;
+        let exp_abserr = 2.990224871000550874E-06;
+        let exp_resabs = 7.716049357767090777E-02;
+        let exp_resasc = 4.434273814139995384E-02;
+
+        let alpha = 2.6;
+        let f = |x| f1(x, alpha);
+
+        let result = qk15(f, 0.0, 1.0, &mut abserr, &mut resabs, &mut resasc);
+
+        test_rel(result, exp_result, 1e-15);
+        test_rel(abserr, exp_abserr, 1e-7);
+        test_rel(resabs, exp_resabs, 1e-15);
+        test_rel(resasc, exp_resasc, 1e-15);
+
+        let result = qk15(f, 1.0, 0.0, &mut abserr, &mut resabs, &mut resasc);
+
+        test_rel(result, -exp_result, 1e-15);
+        test_rel(abserr, exp_abserr, 1e-7);
+        test_rel(resabs, exp_resabs, 1e-15);
+        test_rel(resasc, exp_resasc, 1e-15);
+    }
+    #[test]
+    fn test_qk15_singularity() {
+        let mut abserr = 0.0;
+        let mut resabs = 0.0;
+        let mut resasc = 0.0;
+        let exp_result = 1.555688196612745777e1;
+        let exp_abserr = 2.350164577239293706e1;
+        let exp_resabs = 1.555688196612745777e1;
+        let exp_resasc = 2.350164577239293706e1;
+
+        let alpha = -0.9;
+        let f = |x| f1(x, alpha);
+        let result = qk15(f, 0.0, 1.0, &mut abserr, &mut resabs, &mut resasc);
+
+        test_rel(result, exp_result, 1e-15);
+        test_rel(abserr, exp_abserr, 1e-7);
+        test_rel(resabs, exp_resabs, 1e-15);
+        test_rel(resasc, exp_resasc, 1e-15);
+
+        let result = qk15(f, 1.0, 0.0, &mut abserr, &mut resabs, &mut resasc);
+
+        test_rel(result, -exp_result, 1e-15);
+        test_rel(abserr, exp_abserr, 1e-7);
+        test_rel(resabs, exp_resabs, 1e-15);
+        test_rel(resasc, exp_resasc, 1e-15);
+    }
+    #[test]
+    fn test_qk15_oscillating() {
+        let mut abserr = 0.0;
+        let mut resabs = 0.0;
+        let mut resasc = 0.0;
+        let exp_result = -7.238969575483799046e-1;
+        let exp_abserr = 8.760080200939757174e-6;
+        let exp_resabs = 1.165564172429140788e0;
+        let exp_resasc = 9.334560307787327371e-1;
+
+        let alpha = 1.3;
+        let f = |x| f3(x, alpha);
+        let result = qk15(f, 0.3, 2.71, &mut abserr, &mut resabs, &mut resasc);
+
+        test_rel(result, exp_result, 1e-15);
+        test_rel(abserr, exp_abserr, 1e-7);
+        test_rel(resabs, exp_resabs, 1e-15);
+        test_rel(resasc, exp_resasc, 1e-15);
+
+        let result = qk15(f, 2.71, 0.3, &mut abserr, &mut resabs, &mut resasc);
+
+        test_rel(result, -exp_result, 1e-15);
+        test_rel(abserr, exp_abserr, 1e-7);
+        test_rel(resabs, exp_resabs, 1e-15);
+        test_rel(resasc, exp_resasc, 1e-15);
+    }
+
+    #[test]
+    fn test_qk21_smooth_pos() {
+        let mut abserr = 0.0;
+        let mut resabs = 0.0;
+        let mut resasc = 0.0;
+        let exp_result = 7.716049379303084599E-02;
+        let exp_abserr = 9.424302194248481445E-08;
+        let exp_resabs = 7.716049379303084599E-02;
+        let exp_resasc = 4.434311425038358484E-02;
+
+        let alpha = 2.6;
+        let f = |x| f1(x, alpha);
+
+        let result = qk21(f, 0.0, 1.0, &mut abserr, &mut resabs, &mut resasc);
+
+        test_rel(result, exp_result, 1e-15);
+        test_rel(abserr, exp_abserr, 1e-7);
+        test_rel(resabs, exp_resabs, 1e-15);
+        test_rel(resasc, exp_resasc, 1e-15);
+
+        let result = qk21(f, 1.0, 0.0, &mut abserr, &mut resabs, &mut resasc);
+
+        test_rel(result, -exp_result, 1e-15);
+        test_rel(abserr, exp_abserr, 1e-7);
+        test_rel(resabs, exp_resabs, 1e-15);
+        test_rel(resasc, exp_resasc, 1e-15);
+    }
+    #[test]
+    fn test_qk21_singularity() {
+        let mut abserr = 0.0;
+        let mut resabs = 0.0;
+        let mut resasc = 0.0;
+        let exp_result = 1.799045317938126232E+01;
+        let exp_abserr = 2.782360287710622515E+01;
+        let exp_resabs = 1.799045317938126232E+01;
+        let exp_resasc = 2.782360287710622515E+01;
+
+        let alpha = -0.9;
+        let f = |x| f1(x, alpha);
+        let result = qk21(f, 0.0, 1.0, &mut abserr, &mut resabs, &mut resasc);
+
+        test_rel(result, exp_result, 1e-15);
+        test_rel(abserr, exp_abserr, 1e-7);
+        test_rel(resabs, exp_resabs, 1e-15);
+        test_rel(resasc, exp_resasc, 1e-15);
+
+        let result = qk21(f, 1.0, 0.0, &mut abserr, &mut resabs, &mut resasc);
+
+        test_rel(result, -exp_result, 1e-15);
+        test_rel(abserr, exp_abserr, 1e-7);
+        test_rel(resabs, exp_resabs, 1e-15);
+        test_rel(resasc, exp_resasc, 1e-15);
+    }
+    #[test]
+    fn test_qk21_oscillating() {
+        let mut abserr = 0.0;
+        let mut resabs = 0.0;
+        let mut resasc = 0.0;
+        let exp_result = -7.238969575482959717E-01;
+        let exp_abserr = 7.999213141433641888E-11;
+        let exp_resabs = 1.150829032708484023E+00;
+        let exp_resasc = 9.297591249133687619E-01;
+
+        let alpha = 1.3;
+        let f = |x| f3(x, alpha);
+        let result = qk21(f, 0.3, 2.71, &mut abserr, &mut resabs, &mut resasc);
+
+        test_rel(result, exp_result, 1e-15);
+        test_rel(abserr, exp_abserr, 1e-7);
+        test_rel(resabs, exp_resabs, 1e-15);
+        test_rel(resasc, exp_resasc, 1e-15);
+
+        let result = qk21(f, 2.71, 0.3, &mut abserr, &mut resabs, &mut resasc);
+
+        test_rel(result, -exp_result, 1e-15);
+        test_rel(abserr, exp_abserr, 1e-7);
+        test_rel(resabs, exp_resabs, 1e-15);
+        test_rel(resasc, exp_resasc, 1e-15);
+    }
+
+    #[test]
+    fn test_qk31_smooth_pos() {
+        let mut abserr = 0.0;
+        let mut resabs = 0.0;
+        let mut resasc = 0.0;
+        let exp_result = 7.716049382494900855E-02;
+        let exp_abserr = 1.713503193600029893E-09;
+        let exp_resabs = 7.716049382494900855E-02;
+        let exp_resasc = 4.427995051868838933E-02;
+
+        let alpha = 2.6;
+        let f = |x| f1(x, alpha);
+
+        let result = qk31(f, 0.0, 1.0, &mut abserr, &mut resabs, &mut resasc);
+
+        test_rel(result, exp_result, 1e-15);
+        test_rel(abserr, exp_abserr, 1e-7);
+        test_rel(resabs, exp_resabs, 1e-15);
+        test_rel(resasc, exp_resasc, 1e-15);
+
+        let result = qk31(f, 1.0, 0.0, &mut abserr, &mut resabs, &mut resasc);
+
+        test_rel(result, -exp_result, 1e-15);
+        test_rel(abserr, exp_abserr, 1e-7);
+        test_rel(resabs, exp_resabs, 1e-15);
+        test_rel(resasc, exp_resasc, 1e-15);
+    }
+    #[test]
+    fn test_qk31_singularity() {
+        let mut abserr = 0.0;
+        let mut resabs = 0.0;
+        let mut resasc = 0.0;
+        let exp_result = 2.081873305159121657E+01;
+        let exp_abserr = 3.296500137482590276E+01;
+        let exp_resabs = 2.081873305159121301E+01;
+        let exp_resasc = 3.296500137482590276E+01;
+
+        let alpha = -0.9;
+        let f = |x| f1(x, alpha);
+        let result = qk31(f, 0.0, 1.0, &mut abserr, &mut resabs, &mut resasc);
+
+        test_rel(result, exp_result, 1e-15);
+        test_rel(abserr, exp_abserr, 1e-7);
+        test_rel(resabs, exp_resabs, 1e-15);
+        test_rel(resasc, exp_resasc, 1e-15);
+
+        let result = qk31(f, 1.0, 0.0, &mut abserr, &mut resabs, &mut resasc);
+
+        test_rel(result, -exp_result, 1e-15);
+        test_rel(abserr, exp_abserr, 1e-7);
+        test_rel(resabs, exp_resabs, 1e-15);
+        test_rel(resasc, exp_resasc, 1e-15);
+    }
+    #[test]
+    fn test_qk31_oscillating() {
+        let mut abserr = 0.0;
+        let mut resabs = 0.0;
+        let mut resasc = 0.0;
+        let exp_result = -7.238969575482959717E-01;
+        let exp_abserr = 1.285805464427459261E-14;
+        let exp_resabs = 1.158150602093290571E+00;
+        let exp_resasc = 9.277828092501518853E-01;
+
+        let alpha = 1.3;
+        let f = |x| f3(x, alpha);
+        let result = qk31(f, 0.3, 2.71, &mut abserr, &mut resabs, &mut resasc);
+
+        test_rel(result, exp_result, 1e-15);
+        test_rel(abserr, exp_abserr, 1e-7);
+        test_rel(resabs, exp_resabs, 1e-15);
+        test_rel(resasc, exp_resasc, 1e-15);
+
+        let result = qk31(f, 2.71, 0.3, &mut abserr, &mut resabs, &mut resasc);
+
+        test_rel(result, -exp_result, 1e-15);
+        test_rel(abserr, exp_abserr, 1e-7);
+        test_rel(resabs, exp_resabs, 1e-15);
+        test_rel(resasc, exp_resasc, 1e-15);
+    }
+
+    #[test]
+    fn test_qk41_smooth_pos() {
+        let mut abserr = 0.0;
+        let mut resabs = 0.0;
+        let mut resasc = 0.0;
+        let exp_result = 7.716049382681375302E-02;
+        let exp_abserr = 9.576386660975511224E-11;
+        let exp_resabs = 7.716049382681375302E-02;
+        let exp_resasc = 4.421521169637691873E-02;
+
+        let alpha = 2.6;
+        let f = |x| f1(x, alpha);
+
+        let result = qk41(f, 0.0, 1.0, &mut abserr, &mut resabs, &mut resasc);
+
+        test_rel(result, exp_result, 1e-15);
+        test_rel(abserr, exp_abserr, 1e-7);
+        test_rel(resabs, exp_resabs, 1e-15);
+        test_rel(resasc, exp_resasc, 1e-15);
+
+        let result = qk41(f, 1.0, 0.0, &mut abserr, &mut resabs, &mut resasc);
+
+        test_rel(result, -exp_result, 1e-15);
+        test_rel(abserr, exp_abserr, 1e-7);
+        test_rel(resabs, exp_resabs, 1e-15);
+        test_rel(resasc, exp_resasc, 1e-15);
+    }
+    #[test]
+    fn test_qk41_singularity() {
+        let mut abserr = 0.0;
+        let mut resabs = 0.0;
+        let mut resasc = 0.0;
+        let exp_result = 2.288677623903126701E+01;
+        let exp_abserr = 3.671538820274916048E+01;
+        let exp_resabs = 2.288677623903126701E+01;
+        let exp_resasc = 3.671538820274916048E+01;
+
+        let alpha = -0.9;
+        let f = |x| f1(x, alpha);
+        let result = qk41(f, 0.0, 1.0, &mut abserr, &mut resabs, &mut resasc);
+
+        test_rel(result, exp_result, 1e-15);
+        test_rel(abserr, exp_abserr, 1e-7);
+        test_rel(resabs, exp_resabs, 1e-15);
+        test_rel(resasc, exp_resasc, 1e-15);
+
+        let result = qk41(f, 1.0, 0.0, &mut abserr, &mut resabs, &mut resasc);
+
+        test_rel(result, -exp_result, 1e-15);
+        test_rel(abserr, exp_abserr, 1e-7);
+        test_rel(resabs, exp_resabs, 1e-15);
+        test_rel(resasc, exp_resasc, 1e-15);
+    }
+    #[test]
+    fn test_qk41_oscillating() {
+        let mut abserr = 0.0;
+        let mut resabs = 0.0;
+        let mut resasc = 0.0;
+        let exp_result = -7.238969575482959717E-01;
+        let exp_abserr = 1.286535726271015626E-14;
+        let exp_resabs = 1.158808363486595328E+00;
+        let exp_resasc = 9.264382258645686985E-01;
+
+        let alpha = 1.3;
+        let f = |x| f3(x, alpha);
+        let result = qk41(f, 0.3, 2.71, &mut abserr, &mut resabs, &mut resasc);
+
+        test_rel(result, exp_result, 1e-15);
+        test_rel(abserr, exp_abserr, 1e-7);
+        test_rel(resabs, exp_resabs, 1e-15);
+        test_rel(resasc, exp_resasc, 1e-15);
+
+        let result = qk41(f, 2.71, 0.3, &mut abserr, &mut resabs, &mut resasc);
+
+        test_rel(result, -exp_result, 1e-15);
+        test_rel(abserr, exp_abserr, 1e-7);
+        test_rel(resabs, exp_resabs, 1e-15);
+        test_rel(resasc, exp_resasc, 1e-15);
+    }
+
+    #[test]
+    fn test_qk51_smooth_pos() {
+        let mut abserr = 0.0;
+        let mut resabs = 0.0;
+        let mut resasc = 0.0;
+        let exp_result = 7.716049382708510540E-02;
+        let exp_abserr = 1.002079980317363772E-11;
+        let exp_resabs = 7.716049382708510540E-02;
+        let exp_resasc = 4.416474291216854892E-02;
+
+        let alpha = 2.6;
+        let f = |x| f1(x, alpha);
+
+        let result = qk51(f, 0.0, 1.0, &mut abserr, &mut resabs, &mut resasc);
+
+        test_rel(result, exp_result, 1e-15);
+        test_rel(abserr, exp_abserr, 1e-7);
+        test_rel(resabs, exp_resabs, 1e-15);
+        test_rel(resasc, exp_resasc, 1e-15);
+
+        let result = qk51(f, 1.0, 0.0, &mut abserr, &mut resabs, &mut resasc);
+
+        test_rel(result, -exp_result, 1e-15);
+        test_rel(abserr, exp_abserr, 1e-7);
+        test_rel(resabs, exp_resabs, 1e-15);
+        test_rel(resasc, exp_resasc, 1e-15);
+    }
+    #[test]
+    fn test_qk51_singularity() {
+        let mut abserr = 0.0;
+        let mut resabs = 0.0;
+        let mut resasc = 0.0;
+        let exp_result = 2.449953612016972215E+01;
+        let exp_abserr = 3.967771249391228849E+01;
+        let exp_resabs = 2.449953612016972215E+01;
+        let exp_resasc = 3.967771249391228849E+01;
+
+        let alpha = -0.9;
+        let f = |x| f1(x, alpha);
+        let result = qk51(f, 0.0, 1.0, &mut abserr, &mut resabs, &mut resasc);
+
+        test_rel(result, exp_result, 1e-15);
+        test_rel(abserr, exp_abserr, 1e-7);
+        test_rel(resabs, exp_resabs, 1e-15);
+        test_rel(resasc, exp_resasc, 1e-15);
+
+        let result = qk51(f, 1.0, 0.0, &mut abserr, &mut resabs, &mut resasc);
+
+        test_rel(result, -exp_result, 1e-15);
+        test_rel(abserr, exp_abserr, 1e-7);
+        test_rel(resabs, exp_resabs, 1e-15);
+        test_rel(resasc, exp_resasc, 1e-15);
+    }
+    #[test]
+    fn test_qk51_oscillating() {
+        let mut abserr = 0.0;
+        let mut resabs = 0.0;
+        let mut resasc = 0.0;
+        let exp_result = -7.238969575482961938E-01;
+        let exp_abserr = 1.285290995039385778E-14;
+        let exp_resabs = 1.157687209264406381E+00;
+        let exp_resasc = 9.264666884071264263E-01;
+
+        let alpha = 1.3;
+        let f = |x| f3(x, alpha);
+        let result = qk51(f, 0.3, 2.71, &mut abserr, &mut resabs, &mut resasc);
+
+        test_rel(result, exp_result, 1e-15);
+        test_rel(abserr, exp_abserr, 1e-7);
+        test_rel(resabs, exp_resabs, 1e-15);
+        test_rel(resasc, exp_resasc, 1e-15);
+
+        let result = qk51(f, 2.71, 0.3, &mut abserr, &mut resabs, &mut resasc);
+
+        test_rel(result, -exp_result, 1e-15);
+        test_rel(abserr, exp_abserr, 1e-7);
+        test_rel(resabs, exp_resabs, 1e-15);
+        test_rel(resasc, exp_resasc, 1e-15);
+    }
+
+    #[test]
+    fn test_qk61_smooth_pos() {
+        let mut abserr = 0.0;
+        let mut resabs = 0.0;
+        let mut resasc = 0.0;
+        let exp_result = 7.716049382713800753E-02;
+        let exp_abserr = 1.566060362296155616E-12;
+        let exp_resabs = 7.716049382713800753E-02;
+        let exp_resasc = 4.419287685934316506E-02;
+
+        let alpha = 2.6;
+        let f = |x| f1(x, alpha);
+
+        let result = qk61(f, 0.0, 1.0, &mut abserr, &mut resabs, &mut resasc);
+
+        test_rel(result, exp_result, 1e-15);
+        test_rel(abserr, exp_abserr, 1e-5);
+        test_rel(resabs, exp_resabs, 1e-15);
+        test_rel(resasc, exp_resasc, 1e-15);
+
+        let result = qk61(f, 1.0, 0.0, &mut abserr, &mut resabs, &mut resasc);
+
+        test_rel(result, -exp_result, 1e-15);
+        test_rel(abserr, exp_abserr, 1e-5);
+        test_rel(resabs, exp_resabs, 1e-15);
+        test_rel(resasc, exp_resasc, 1e-15);
+    }
+    #[test]
+    fn test_qk61_singularity() {
+        let mut abserr = 0.0;
+        let mut resabs = 0.0;
+        let mut resasc = 0.0;
+        let exp_result = 2.583030240976628988E+01;
+        let exp_abserr = 4.213750493076978643E+01;
+        let exp_resabs = 2.583030240976628988E+01;
+        let exp_resasc = 4.213750493076978643E+01;
+
+        let alpha = -0.9;
+        let f = |x| f1(x, alpha);
+        let result = qk61(f, 0.0, 1.0, &mut abserr, &mut resabs, &mut resasc);
+
+        test_rel(result, exp_result, 1e-15);
+        test_rel(abserr, exp_abserr, 1e-7);
+        test_rel(resabs, exp_resabs, 1e-15);
+        test_rel(resasc, exp_resasc, 1e-15);
+
+        let result = qk61(f, 1.0, 0.0, &mut abserr, &mut resabs, &mut resasc);
+
+        test_rel(result, -exp_result, 1e-15);
+        test_rel(abserr, exp_abserr, 1e-7);
+        test_rel(resabs, exp_resabs, 1e-15);
+        test_rel(resasc, exp_resasc, 1e-15);
+    }
+    #[test]
+    fn test_qk61_oscillating() {
+        let mut abserr = 0.0;
+        let mut resabs = 0.0;
+        let mut resasc = 0.0;
+        let exp_result = -7.238969575482959717E-01;
+        let exp_abserr = 1.286438572027470736E-14;
+        let exp_resabs = 1.158720854723590099E+00;
+        let exp_resasc = 9.270469641771273972E-01;
+
+        let alpha = 1.3;
+        let f = |x| f3(x, alpha);
+        let result = qk61(f, 0.3, 2.71, &mut abserr, &mut resabs, &mut resasc);
+
+        test_rel(result, exp_result, 1e-15);
+        test_rel(abserr, exp_abserr, 1e-7);
+        test_rel(resabs, exp_resabs, 1e-15);
+        test_rel(resasc, exp_resasc, 1e-15);
+
+        let result = qk61(f, 2.71, 0.3, &mut abserr, &mut resabs, &mut resasc);
+
+        test_rel(result, -exp_result, 1e-15);
+        test_rel(abserr, exp_abserr, 1e-7);
+        test_rel(resabs, exp_resabs, 1e-15);
+        test_rel(resasc, exp_resasc, 1e-15);
+    }
 }

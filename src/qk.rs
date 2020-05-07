@@ -557,7 +557,7 @@ pub fn fixed_order_gauss_kronrod<F>(
     func: F,
     a: f64,
     b: f64,
-    key: i8,
+    key: u8,
     abserr: &mut f64,
     resabs: &mut f64,
     resasc: &mut f64,
@@ -565,15 +565,8 @@ pub fn fixed_order_gauss_kronrod<F>(
 where
     F: Fn(f64) -> f64,
 {
-    let keyf = if key == 0 {
-        1
-    } else if key >= 7 {
-        6
-    } else {
-        key
-    };
-    match keyf {
-        1 => qk15(&func, a, b, abserr, resabs, resasc),
+    match key {
+        0 | 1 => qk15(&func, a, b, abserr, resabs, resasc),
         2 => qk21(&func, a, b, abserr, resabs, resasc),
         3 => qk31(&func, a, b, abserr, resabs, resasc),
         4 => qk41(&func, a, b, abserr, resabs, resasc),
@@ -701,7 +694,6 @@ where
 mod test {
     use super::*;
     use crate::test_utils::test_rel;
-    use std::f64::consts::PI;
 
     fn f1(x: f64, alpha: f64) -> f64 {
         x.powf(alpha) * x.recip().ln()

@@ -86,7 +86,7 @@ where
         let area12 = area1 + area2;
         let error12 = error1 + error2;
 
-        errsum = errsum + (error12 - e_i);
+        errsum += error12 - e_i;
         area = area + area12 - r_i;
 
         if (resabs1 - error1).abs() > f64::EPSILON && (resasc2 - error2).abs() > f64::EPSILON {
@@ -131,7 +131,7 @@ where
         error_type = IntegrationRetcode::TooManyIters;
     }
 
-    return handle_error(result, abserr, error_type);
+    handle_error(result, abserr, error_type)
 }
 
 #[cfg(test)]

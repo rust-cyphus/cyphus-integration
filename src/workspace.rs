@@ -120,8 +120,8 @@ struct IntegrationQawsTable<T> {
 }
 
 enum IntegrationQawoEnum {
-    cosine,
-    sine,
+    Cosine,
+    Sine,
 }
 
 /// Workspace for QAWO integrator

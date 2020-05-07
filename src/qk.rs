@@ -647,7 +647,7 @@ where
     let mut fval2: f64;
 
     if inf == 2 {
-        fval1 = fval1 + f(-tabsc1);
+        fval1 += f(-tabsc1);
     }
     let fc = fval1 / centr / centr;
     let mut resg = fc * wg[3];
@@ -663,8 +663,8 @@ where
         fval1 = f(tabsc1);
         fval2 = f(tabsc2);
         if inf == 2 {
-            fval1 = fval1 + f(-tabsc1);
-            fval2 = fval2 + f(-tabsc2);
+            fval1 += f(-tabsc1);
+            fval2 += f(-tabsc2);
         }
         fval1 = (fval1 / absc1) / absc1;
         fval2 = (fval2 / absc2) / absc2;
@@ -672,20 +672,20 @@ where
         fv2[j] = fval2;
         let fsum = fval1 + fval2;
         if j % 2 != 0 {
-            resg = resg + wg[j / 2] * fsum;
+            resg += wg[j / 2] * fsum;
         }
-        resk = resk + wgk[j] * fsum;
-        *resabs = (*resabs) + wgk[j] * (fval1.abs() + fval2.abs());
+        resk += wgk[j] * fsum;
+        *resabs += wgk[j] * (fval1.abs() + fval2.abs());
     }
     let reskh = resk * half;
     *resasc = wgk[7] * (fc - reskh).abs();
 
     for j in 0..7 {
-        *resasc = (*resasc) + wgk[j] * ((fv1[j] - reskh).abs() + (fv2[j] - reskh).abs());
+        *resasc += wgk[j] * ((fv1[j] - reskh).abs() + (fv2[j] - reskh).abs());
     }
     let result = resk * hlgth;
-    *resabs = (*resabs) * hlgth;
-    *resasc = (*resasc) * hlgth;
+    *resabs *= hlgth;
+    *resasc *= hlgth;
     *abserr = ((resk - resg) * hlgth).abs();
 
     if (*resasc != 0.0) && (*abserr != 0.0) {

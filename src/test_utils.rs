@@ -29,5 +29,5 @@ pub(crate) fn test_rel(result: f64, expected: f64, relative_error: f64) {
         status == 0,
         format!("observed: {:?}, expected: {:?}", result, expected)
     );
-    assert!(status != 1, format!("[Test uses subnormal value]"));
+    assert!(status != 1, "[Test uses subnormal value]".to_string());
 }

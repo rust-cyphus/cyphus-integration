@@ -155,6 +155,6 @@ impl ExtrapolationTable {
 
         *abserr = (*abserr).max(5.0 * f64::EPSILON * result.abs());
 
-        return result;
+        result
     }
 }

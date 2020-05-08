@@ -1,4 +1,4 @@
-use crate::error::IntegrationRetcode;
+use crate::result::IntegrationResult;
 use crate::qags::qags;
 
 /// Integrate a function over an infinite, semi-infinit or finite interval by
@@ -13,7 +13,7 @@ pub fn qagi<F>(
     epsrel: f64,
     limit: usize,
     key: u8,
-) -> std::result::Result<(f64, f64), IntegrationRetcode>
+) -> IntegrationResult
     where
         F: Fn(f64) -> f64,
 {
@@ -93,13 +93,8 @@ mod tests {
 
         let result = qagi(f455, 0.0, f64::INFINITY, 0.0, 1e-3, 1000, 1);
 
-        match result {
-            Ok(result) => {
-                test_rel(result.0, exp_result, 1e-14);
-                test_rel(result.1, exp_abserr, 1e-5);
-            }
-            Err(err) => panic!("{:?}", err),
-        }
+        test_rel(result.val, exp_result, 1e-14);
+        test_rel(result.err, exp_abserr, 1e-5);
     }
 
     #[test]
@@ -110,13 +105,9 @@ mod tests {
         let alpha = 5.0;
         let f = |x| f15(x, alpha);
         let result = qagi(f, 0.0, f64::INFINITY, 0.0, 1e-7, 1000, 1);
-        match result {
-            Ok(result) => {
-                test_rel(result.0, exp_result, 1e-14);
-                test_rel(result.1, exp_abserr, 1e-5);
-            }
-            Err(err) => panic!("{:?}", err),
-        }
+
+        test_rel(result.val, exp_result, 1e-14);
+        test_rel(result.err, exp_abserr, 1e-5);
     }
 
     #[test]
@@ -127,13 +118,9 @@ mod tests {
         let alpha = 1.0;
         let f = |x| f16(x, alpha);
         let result = qagi(f, 99.9, f64::INFINITY, 1e-7, 0.0, 1000, 1);
-        match result {
-            Ok(result) => {
-                test_rel(result.0, exp_result, 1e-14);
-                test_rel(result.1, exp_abserr, 1e-5);
-            }
-            Err(err) => panic!("{:?}", err),
-        }
+
+        test_rel(result.val, exp_result, 1e-14);
+        test_rel(result.err, exp_abserr, 1e-5);
     }
 
     #[test]
@@ -145,13 +132,9 @@ mod tests {
         let f = |x: f64| (-x - x * x).exp();
 
         let result = qagi(f, f64::NEG_INFINITY, f64::INFINITY, 1e-7, 0.0, 1000, 1);
-        match result {
-            Ok(result) => {
-                test_rel(result.0, exp_result, 1e-14);
-                test_rel(result.1, exp_abserr, 1e-5);
-            }
-            Err(err) => panic!("{:?}", err),
-        }
+
+        test_rel(result.val, exp_result, 1e-14);
+        test_rel(result.err, exp_abserr, 1e-5);
     }
 
     #[test]
@@ -163,12 +146,8 @@ mod tests {
         let f = |x: f64| (alpha * x).exp();
 
         let result = qagi(f, f64::NEG_INFINITY, 1.0, 1e-7, 0.0, 1000, 1);
-        match result {
-            Ok(result) => {
-                test_rel(result.0, exp_result, 1e-14);
-                test_rel(result.1, exp_abserr, 1e-5);
-            }
-            Err(err) => panic!("{:?}", err),
-        }
+
+        test_rel(result.val, exp_result, 1e-14);
+        test_rel(result.err, exp_abserr, 1e-5);
     }
 }

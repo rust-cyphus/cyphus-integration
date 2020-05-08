@@ -1,9 +1,8 @@
-use crate::error::{handle_error, IntegrationRetcode};
 use crate::extrap::ExtrapolationTable;
 use crate::qk::fixed_order_gauss_kronrod;
 use crate::utils::{subinterval_too_small, test_positivity};
 use crate::workspace::IntegrationWorkSpace;
-use num::Float;
+use crate::result::{IntegrationRetCode, IntegrationResult};
 
 #[allow(clippy::too_many_arguments)]
 pub fn qags<F>(
@@ -14,49 +13,59 @@ pub fn qags<F>(
     epsrel: f64,
     limit: usize,
     key: u8,
-) -> std::result::Result<(f64, f64), IntegrationRetcode>
+) -> IntegrationResult
     where
         F: Fn(f64) -> f64,
 {
-    let mut result = 0.0;
-    let mut abserr = 0.0;
+    let mut result = IntegrationResult {
+        val: 0.0,
+        err: 0.0,
+        code: IntegrationRetCode::Success,
+    };
+
     let mut workspace = IntegrationWorkSpace::new(limit);
     workspace.alist[0] = a;
     workspace.blist[0] = b;
 
     // Test on accuracy
     if epsabs <= 0.0 && (epsrel < 50.0 * f64::EPSILON || epsrel < f64::EPSILON) {
-        return handle_error(result, abserr, IntegrationRetcode::BadTol);
+        result.code = IntegrationRetCode::BadTol;
+        result.issue_warning(Some(&[epsabs, epsrel]));
+        return result;
     }
 
     // Perform the first integration
     let mut resabs: f64 = 0.0;
     let mut resasc: f64 = 0.0;
 
-    result = fixed_order_gauss_kronrod(&f, a, b, key, &mut abserr, &mut resabs, &mut resasc);
-    workspace.rlist[0] = result;
-    workspace.elist[0] = abserr;
+    result.val = fixed_order_gauss_kronrod(&f, a, b, key, &mut result.err, &mut resabs, &mut resasc);
+    workspace.rlist[0] = result.val;
+    workspace.elist[0] = result.err;
     workspace.size = 1;
 
-    let mut tolerance = epsabs.max(epsrel * result.abs());
+    let mut tolerance = epsabs.max(epsrel * result.val.abs());
 
-    if abserr <= 100.0 * f64::EPSILON * resabs && abserr > tolerance {
-        return handle_error(result, abserr, IntegrationRetcode::RoundOffFirstIter);
-    } else if (abserr <= tolerance && abserr != resasc) || abserr == 0.0 {
-        return Ok((result, abserr));
+    if result.err <= 100.0 * f64::EPSILON * resabs && result.err > tolerance {
+        result.code = IntegrationRetCode::RoundOffFirstIter;
+        result.issue_warning(None);
+        return result;
+    } else if (result.err <= tolerance && result.err != resasc) || result.err == 0.0 {
+        return result;
     } else if limit == 1 {
-        return handle_error(result, abserr, IntegrationRetcode::OneIterNotEnough);
+        result.code = IntegrationRetCode::OneIterNotEnough;
+        result.issue_warning(None);
+        return result;
     }
 
     // Initialization
     let mut table = ExtrapolationTable::new();
-    table.append(result);
+    table.append(result.val);
 
-    let mut area = result;
-    let mut errsum = abserr;
-    let mut res_ext = result;
+    let mut area = result.val;
+    let mut errsum = result.err;
+    let mut res_ext = result.val;
     let mut err_ext = f64::MAX;
-    let positive_integrand = test_positivity(result, resabs);
+    let positive_integrand = test_positivity(result.val, resabs);
 
     let mut extrapolate: bool = false;
     let mut disallow_extrapolation: bool = false;
@@ -64,7 +73,6 @@ pub fn qags<F>(
     let mut roundoff_type2: usize = 0;
     let mut roundoff_type3: usize = 0;
 
-    let mut error_type: IntegrationRetcode = IntegrationRetcode::Success;
     let mut error_type2: bool = false;
     let mut error_over_large_intervals = 0.0;
     let mut ertest = 0.0;
@@ -127,7 +135,7 @@ pub fn qags<F>(
 
         // Test for roundoff and eventually set error flag
         if roundoff_type1 + roundoff_type2 >= 10 || roundoff_type3 >= 20 {
-            error_type = IntegrationRetcode::RoundOff;
+            result.code = IntegrationRetCode::RoundOff;
         }
         if roundoff_type2 >= 5 {
             error_type2 = true;
@@ -135,24 +143,24 @@ pub fn qags<F>(
 
         // Set error flag in the case of bad integrand behavior at a point of the integraion range
         if subinterval_too_small(a1, a2, b2) {
-            error_type = IntegrationRetcode::BadIntegrand;
+            result.code = IntegrationRetCode::BadIntegrand;
         }
 
         // append the newly-created intervals to list
         workspace.update((a1, b1, area1, error1), (a2, b2, area2, error2));
 
         if errsum <= tolerance {
-            result = workspace.sum_results();
-            abserr = errsum;
-            return handle_error(result, abserr, error_type);
+            result.val = workspace.sum_results();
+            result.err = errsum;
+            return result;
         }
 
-        if error_type != IntegrationRetcode::Success {
+        if result.code != IntegrationRetCode::Success {
             break;
         }
 
         if iter >= limit - 1 {
-            error_type = IntegrationRetcode::TooManyIters;
+            result.code = IntegrationRetCode::TooManyIters;
             break;
         }
 
@@ -197,7 +205,7 @@ pub fn qags<F>(
         ktmin += 1;
 
         if ktmin > 5 && err_ext < errsum * 1e-3 {
-            error_type = IntegrationRetcode::DivergeSlowConverge;
+            result.code = IntegrationRetCode::DivergeSlowConverge;
         }
         if abseps < err_ext {
             ktmin = 0;
@@ -214,7 +222,7 @@ pub fn qags<F>(
         if table.n == 1 {
             disallow_extrapolation = true;
         }
-        if error_type == IntegrationRetcode::DivergeSlowConverge {
+        if result.code == IntegrationRetCode::DivergeSlowConverge {
             break;
         }
 
@@ -229,34 +237,34 @@ pub fn qags<F>(
     }
 
 
-    result = res_ext;
-    abserr = err_ext;
+    result.val = res_ext;
+    result.err = err_ext;
 
     if err_ext == f64::MAX {
-        result = workspace.sum_results();
-        abserr = errsum;
-        return handle_error(result, abserr, error_type);
+        result.val = workspace.sum_results();
+        result.err = errsum;
+        return result;
     }
 
-    if error_type == IntegrationRetcode::TooManyIters || error_type2 {
+    if result.code == IntegrationRetCode::TooManyIters || error_type2 {
         if error_type2 {
             err_ext = err_ext + correc;
         }
-        if error_type == IntegrationRetcode::Success {
-            error_type = IntegrationRetcode::BadIntegrand;
+        if result.code == IntegrationRetCode::Success {
+            result.code = IntegrationRetCode::BadIntegrand;
         }
         if res_ext != 0.0 && area != 0.0 {
             if err_ext * res_ext.abs().recip() > errsum * area.abs().recip() {
-                result = workspace.sum_results();
-                abserr = errsum;
-                return handle_error(result, abserr, error_type);
+                result.val = workspace.sum_results();
+                result.err = errsum;
+                return result;
             }
         } else if err_ext > errsum {
-            result = workspace.sum_results();
-            abserr = errsum;
-            return handle_error(result, abserr, error_type);
+            result.val = workspace.sum_results();
+            result.err = errsum;
+            return result;
         } else if area == 0.0 {
-            return handle_error(result, abserr, error_type);
+            return result;
         }
     }
 
@@ -264,7 +272,7 @@ pub fn qags<F>(
     {
         let max_area = res_ext.abs().max(area.abs());
         if !positive_integrand && max_area < 1e-2 * resabs {
-            return handle_error(result, abserr, error_type);
+            return result;
         }
     }
 
@@ -272,11 +280,11 @@ pub fn qags<F>(
         let ratio = res_ext * area.recip();
 
         if ratio < 1e-2 || ratio > 100.0 || errsum > area.abs() {
-            error_type = IntegrationRetcode::Other;
+            result.code = IntegrationRetCode::Other;
         }
     }
 
-    return handle_error(result, abserr, error_type);
+    return result;
 }
 
 #[cfg(test)]
@@ -302,23 +310,13 @@ mod tests {
 
         let result = qags(f, 0.0, 1.0, 0.0, 1e-10, 1000, 2);
 
-        match result {
-            Ok(result) => {
-                test_rel(result.0, exp_result, 1e-15);
-                test_rel(result.1, exp_abserr, 1e-6);
-            }
-            Err(err) => panic!("{:?}", err),
-        }
+        test_rel(result.val, exp_result, 1e-15);
+        test_rel(result.err, exp_abserr, 1e-6);
 
         let result = qags(f, 1.0, 0.0, 0.0, 1e-10, 1000, 2);
 
-        match result {
-            Ok(result) => {
-                test_rel(result.0, -exp_result, 1e-15);
-                test_rel(result.1, exp_abserr, 1e-6);
-            }
-            Err(err) => panic!("{:?}", err),
-        }
+        test_rel(result.val, -exp_result, 1e-15);
+        test_rel(result.err, exp_abserr, 1e-6);
     }
 
     #[test]
@@ -331,22 +329,12 @@ mod tests {
 
         let result = qags(f, 1.0, 1000.0, 1e-7, 0.0, 1000, 2);
 
-        match result {
-            Ok(result) => {
-                test_rel(result.0, exp_result, 1e-15);
-                test_rel(result.1, exp_abserr, 1e-3);
-            }
-            Err(err) => panic!("{:?}", err),
-        }
+        test_rel(result.val, exp_result, 1e-15);
+        test_rel(result.err, exp_abserr, 1e-3);
 
         let result = qags(f, 1000.0, 1.0, 1e-7, 0.0, 1000, 2);
 
-        match result {
-            Ok(result) => {
-                test_rel(result.0, -exp_result, 1e-15);
-                test_rel(result.1, exp_abserr, 1e-3);
-            }
-            Err(err) => panic!("{:?}", err),
-        }
+        test_rel(result.val, exp_result, 1e-15);
+        test_rel(result.err, exp_abserr, 1e-3);
     }
 }

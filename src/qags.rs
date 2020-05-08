@@ -31,10 +31,10 @@ pub fn qags<F>(
     }
 
     // Perform the first integration
-    let mut resabs: f64 = 0.0;
-    let mut resasc: f64 = 0.0;
+    let (val, err, mut resabs, mut resasc) = fixed_order_gauss_kronrod(&f, a, b, key);
+    result.val = val;
+    result.err = err;
 
-    result.val = fixed_order_gauss_kronrod(&f, a, b, key, &mut result.err, &mut resabs, &mut resasc);
     workspace.rlist[0] = result.val;
     workspace.elist[0] = result.err;
     workspace.size = 1;
@@ -76,16 +76,6 @@ pub fn qags<F>(
     let mut ktmin: usize = 0;
     let mut correc = 0.0;
 
-    // Values to for intergrations on first and second invervals
-    let mut error1 = 0.0;
-    let mut resabs1 = 0.0;
-    let mut resasc1 = 0.0;
-    let mut error2 = 0.0;
-    let mut resabs2 = 0.0;
-    let mut resasc2 = 0.0;
-    let mut area1: f64;
-    let mut area2: f64;
-
     let mut iter = 1;
 
     loop {
@@ -101,8 +91,8 @@ pub fn qags<F>(
 
         iter += 1;
 
-        area1 = fixed_order_gauss_kronrod(&f, a1, b1, key, &mut error1, &mut resabs1, &mut resasc1);
-        area2 = fixed_order_gauss_kronrod(&f, a2, b2, key, &mut error2, &mut resabs2, &mut resasc2);
+        let (area1, error1, _, resasc1) = fixed_order_gauss_kronrod(&f, a1, b1, key);
+        let (area2, error2, _, resasc2) = fixed_order_gauss_kronrod(&f, a2, b2, key);
 
         let area12 = area1 + area2;
         let error12 = error1 + error2;
@@ -286,15 +276,7 @@ pub fn qags<F>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_utils::test_rel;
-
-    fn f1(x: f64, alpha: f64) -> f64 {
-        x.powf(alpha) * x.recip().ln()
-    }
-
-    fn f11(x: f64, alpha: f64) -> f64 {
-        x.recip().ln().powf(alpha - 1.0)
-    }
+    use crate::test_utils::*;
 
     #[test]
     fn test_smooth() {
@@ -330,7 +312,7 @@ mod tests {
 
         let result = qags(f, 1000.0, 1.0, 1e-7, 0.0, 1000, 2);
 
-        test_rel(result.val, exp_result, 1e-15);
+        test_rel(result.val, -exp_result, 1e-15);
         test_rel(result.err, exp_abserr, 1e-3);
     }
 }

@@ -36,18 +36,17 @@ pub fn qag<F>(
     }
 
     // Perform the first integration
-    let mut resabs = 0.0;
-    let mut resasc = 0.0;
-    result.val = fixed_order_gauss_kronrod(&f, a, b, key, &mut result.err, &mut resabs, &mut
-        resasc);
+    let (val, err, mut resabs, mut resasc) = fixed_order_gauss_kronrod(&f, a, b, key);
+    result.val = val;
+    result.err = err;
     workspace.rlist[0] = result.val;
     workspace.elist[0] = result.err;
     workspace.size = 1;
 
     // Test on accuracy
     let mut tolerance = epsabs.max(epsrel * result.val.abs());
-    // need IEEE rounding here to match original quadpack behavior
-    // NOTE: GSL uses a volitile variable for extended precision registers. Should we do the same?
+    // need IEEE rounding here to match original QUADPACK behavior
+    // NOTE: GSL uses a volatile variable for extended precision registers. Should we do the same?
     let round_off = 50.0 * f64::EPSILON * resabs;
 
     if result.err <= round_off && result.err > tolerance {
@@ -74,17 +73,8 @@ pub fn qag<F>(
         let a2 = b1;
         let b2 = b_i;
 
-        let mut error1 = 0.0;
-        let mut resabs1 = 0.0;
-        let mut resasc1 = 0.0;
-        let area1 =
-            fixed_order_gauss_kronrod(&f, a1, b1, key, &mut error1, &mut resabs1, &mut resasc1);
-
-        let mut error2 = 0.0;
-        let mut resabs2 = 0.0;
-        let mut resasc2 = 0.0;
-        let area2 =
-            fixed_order_gauss_kronrod(&f, a2, b2, key, &mut error2, &mut resabs2, &mut resasc2);
+        let (area1, error1, _, resasc1) = fixed_order_gauss_kronrod(&f, a1, b1, key);
+        let (area2, error2, _, resasc2) = fixed_order_gauss_kronrod(&f, a2, b2, key);
 
         let area12 = area1 + area2;
         let error12 = error1 + error2;
@@ -141,25 +131,7 @@ pub fn qag<F>(
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::test_utils::test_rel;
-
-    fn f1(x: f64, alpha: f64) -> f64 {
-        x.powf(alpha) * x.recip().ln()
-    }
-
-    fn f3(x: f64, alpha: f64) -> f64 {
-        (2f64.powf(alpha) * x.sin()).cos()
-    }
-
-    fn f16(x: f64, alpha: f64) -> f64 {
-        if x == 0.0 && alpha == 1.0 {
-            1.0
-        } else if x == 0.0 && alpha > 1.0 {
-            0.0
-        } else {
-            x.powf(alpha - 1.0) * (1.0 + 10.0 * x).recip().powi(2)
-        }
-    }
+    use crate::test_utils::*;
 
     #[test]
     fn test_smooth_15() {

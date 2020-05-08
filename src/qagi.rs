@@ -56,34 +56,8 @@ pub fn qagi<F>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_utils::test_rel;
+    use crate::test_utils::*;
     use std::f64::consts::PI;
-
-    fn f1(x: f64, alpha: f64) -> f64 {
-        x.powf(alpha) * x.recip().ln()
-    }
-
-    fn f3(x: f64, alpha: f64) -> f64 {
-        (2f64.powf(alpha) * x.sin()).cos()
-    }
-
-    fn f15(x: f64, alpha: f64) -> f64 {
-        x * x * (-2f64.powf(-alpha) * x).exp()
-    }
-
-    fn f16(x: f64, alpha: f64) -> f64 {
-        if x == 0.0 && alpha == 1.0 {
-            1.0
-        } else if x == 0.0 && alpha > 1.0 {
-            0.0
-        } else {
-            x.powf(alpha - 1.0) * (1.0 + 10.0 * x).recip().powi(2)
-        }
-    }
-
-    fn f455(x: f64) -> f64 {
-        x.ln() / (1.0 + 100.0 * x * x)
-    }
 
 
     #[test]

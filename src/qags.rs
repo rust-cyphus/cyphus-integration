@@ -15,8 +15,8 @@ pub fn qags<F>(
     limit: usize,
     key: u8,
 ) -> std::result::Result<(f64, f64), IntegrationRetcode>
-where
-    F: Fn(f64) -> f64,
+    where
+        F: Fn(f64) -> f64,
 {
     let mut result = 0.0;
     let mut abserr = 0.0;
@@ -72,7 +72,19 @@ where
     let mut ktmin: usize = 0;
     let mut correc = 0.0;
 
-    for iter in 1..limit {
+    // Values to for intergrations on first and second invervals
+    let mut error1 = 0.0;
+    let mut resabs1 = 0.0;
+    let mut resasc1 = 0.0;
+    let mut error2 = 0.0;
+    let mut resabs2 = 0.0;
+    let mut resasc2 = 0.0;
+    let mut area1: f64;
+    let mut area2: f64;
+
+    let mut iter = 1;
+
+    loop {
         // Bisect the subinterval with the largest error estimate
         let (a_i, b_i, r_i, e_i) = workspace.recieve();
 
@@ -83,17 +95,10 @@ where
         let a2 = b1;
         let b2 = b_i;
 
-        let mut error1 = 0.0;
-        let mut resabs1 = 0.0;
-        let mut resasc1 = 0.0;
-        let area1 =
-            fixed_order_gauss_kronrod(&f, a1, b1, key, &mut error1, &mut resabs1, &mut resasc1);
+        iter += 1;
 
-        let mut error2 = 0.0;
-        let mut resabs2 = 0.0;
-        let mut resasc2 = 0.0;
-        let area2 =
-            fixed_order_gauss_kronrod(&f, a2, b2, key, &mut error2, &mut resabs2, &mut resasc2);
+        area1 = fixed_order_gauss_kronrod(&f, a1, b1, key, &mut error1, &mut resabs1, &mut resasc1);
+        area2 = fixed_order_gauss_kronrod(&f, a2, b2, key, &mut error2, &mut resabs2, &mut resasc2);
 
         let area12 = area1 + area2;
         let error12 = error1 + error2;
@@ -122,7 +127,7 @@ where
 
         // Test for roundoff and eventually set error flag
         if roundoff_type1 + roundoff_type2 >= 10 || roundoff_type3 >= 20 {
-            error_type = IntegrationRetcode::RoundOff; // Roundoff error
+            error_type = IntegrationRetcode::RoundOff;
         }
         if roundoff_type2 >= 5 {
             error_type2 = true;
@@ -163,10 +168,10 @@ where
             continue;
         }
 
-        error_over_large_intervals = error_over_large_intervals - last_e_i;
+        error_over_large_intervals -= last_e_i;
 
         if current_level < workspace.maximum_level {
-            error_over_large_intervals = error_over_large_intervals + error12;
+            error_over_large_intervals += error12;
         }
 
         if !extrapolate {
@@ -217,12 +222,17 @@ where
         workspace.reset_nrmax();
         extrapolate = false;
         error_over_large_intervals = errsum;
+
+        if iter >= limit {
+            break;
+        }
     }
+
 
     result = res_ext;
     abserr = err_ext;
 
-    if (err_ext - f64::MAX).abs() > f64::EPSILON {
+    if err_ext == f64::MAX {
         result = workspace.sum_results();
         abserr = errsum;
         return handle_error(result, abserr, error_type);
@@ -235,7 +245,7 @@ where
         if error_type == IntegrationRetcode::Success {
             error_type = IntegrationRetcode::BadIntegrand;
         }
-        if res_ext.abs() > f64::EPSILON && area.abs() > f64::EPSILON {
+        if res_ext != 0.0 && area != 0.0 {
             if err_ext * res_ext.abs().recip() > errsum * area.abs().recip() {
                 result = workspace.sum_results();
                 abserr = errsum;
@@ -245,7 +255,7 @@ where
             result = workspace.sum_results();
             abserr = errsum;
             return handle_error(result, abserr, error_type);
-        } else if area.abs() < f64::EPSILON {
+        } else if area == 0.0 {
             return handle_error(result, abserr, error_type);
         }
     }
@@ -277,6 +287,7 @@ mod tests {
     fn f1(x: f64, alpha: f64) -> f64 {
         x.powf(alpha) * x.recip().ln()
     }
+
     fn f11(x: f64, alpha: f64) -> f64 {
         x.recip().ln().powf(alpha - 1.0)
     }
@@ -309,6 +320,7 @@ mod tests {
             Err(err) => panic!("{:?}", err),
         }
     }
+
     #[test]
     fn test_abs_bound() {
         let alpha = 2.0;
@@ -318,8 +330,6 @@ mod tests {
         let exp_abserr = 1.299646281053874554E-10;
 
         let result = qags(f, 1.0, 1000.0, 1e-7, 0.0, 1000, 2);
-
-        dbg!(result);
 
         match result {
             Ok(result) => {

@@ -1,6 +1,7 @@
 pub(crate) mod error;
 pub(crate) mod extrap;
 pub(crate) mod qag;
+pub(crate) mod qagi;
 pub(crate) mod qags;
 pub(crate) mod qk;
 pub(crate) mod sort;

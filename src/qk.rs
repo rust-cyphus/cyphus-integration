@@ -1,5 +1,3 @@
-use num::Float;
-
 fn rescale_error(err: f64, res_abs: f64, res_asc: f64) -> f64 {
     let mut scaled_err = err.abs();
 
@@ -37,14 +35,11 @@ pub fn qk<F>(
     a: f64,
     b: f64,
     xgk: &[f64],
-    wg: &[f64],
     wgk: &[f64],
-    abserr: &mut f64,
-    resabs: &mut f64,
-    resasc: &mut f64,
-) -> f64
-where
-    F: Fn(f64) -> f64,
+    wg: &[f64],
+) -> (f64, f64, f64, f64)
+    where
+        F: Fn(f64) -> f64,
 {
     let n: usize = xgk.len();
 
@@ -104,11 +99,9 @@ where
     res_abs *= abs_half_len;
     res_asc *= abs_half_len;
 
-    *resabs = res_abs;
-    *resasc = res_asc;
-    *abserr = rescale_error(err, res_abs, res_asc);
+    let abserr = rescale_error(err, res_abs, res_asc);
 
-    res_kronrod
+    (res_kronrod, abserr, res_abs, res_asc)
 }
 
 /// Compute the integral of of `f` from `a` to `b` using
@@ -123,9 +116,9 @@ where
 /// * `resabs` - On return, estimation of the integral of abs(f).
 /// * `resasc` - On return, estimation of integral of abs(f-i/(b-a)), where i is the integral of f.
 #[allow(clippy::excessive_precision, clippy::too_many_arguments)]
-pub fn qk15<F>(func: F, a: f64, b: f64, abserr: &mut f64, resabs: &mut f64, resasc: &mut f64) -> f64
-where
-    F: Fn(f64) -> f64,
+pub fn qk15<F>(func: F, a: f64, b: f64) -> (f64, f64, f64, f64)
+    where
+        F: Fn(f64) -> f64,
 {
     let xgk = [
         0.991_455_371_120_812_639_206_854_697_526_329,
@@ -154,7 +147,8 @@ where
         0.209_482_141_084_727_828_012_999_174_891_714,
     ];
 
-    qk(func, a, b, &xgk, &wg, &wgk, abserr, resabs, resasc)
+
+    qk(func, a, b, &xgk, &wgk, &wg)
 }
 
 /// Compute the integral of of `f` from `a` to `b` using
@@ -170,9 +164,9 @@ where
 /// * `resasc` - On return, estimation of integral of abs(f-i/(b-a)), where i is the integral of f.
 ///
 #[allow(clippy::excessive_precision, clippy::too_many_arguments)]
-pub fn qk21<F>(func: F, a: f64, b: f64, abserr: &mut f64, resabs: &mut f64, resasc: &mut f64) -> f64
-where
-    F: Fn(f64) -> f64,
+pub fn qk21<F>(func: F, a: f64, b: f64) -> (f64, f64, f64, f64)
+    where
+        F: Fn(f64) -> f64,
 {
     let xgk = [
         0.995_657_163_025_808_080_735_527_280_689_003,
@@ -208,7 +202,7 @@ where
         0.149_445_554_002_916_905_664_936_468_389_821,
     ];
 
-    qk(func, a, b, &xgk, &wg, &wgk, abserr, resabs, resasc)
+    qk(func, a, b, &xgk, &wgk, &wg)
 }
 
 /// Compute the integral of of `f` from `a` to `b` using
@@ -224,9 +218,9 @@ where
 /// * `resasc` - On return, estimation of integral of abs(f-i/(b-a)), where i is the integral of f.
 ///
 #[allow(clippy::excessive_precision, clippy::too_many_arguments)]
-pub fn qk31<F>(func: F, a: f64, b: f64, abserr: &mut f64, resabs: &mut f64, resasc: &mut f64) -> f64
-where
-    F: Fn(f64) -> f64,
+pub fn qk31<F>(func: F, a: f64, b: f64) -> (f64, f64, f64, f64)
+    where
+        F: Fn(f64) -> f64,
 {
     let xgk = [
         0.998_002_298_693_397_060_285_172_840_152_271,
@@ -275,7 +269,7 @@ where
         0.101_330_007_014_791_549_017_374_792_767_493,
     ];
 
-    qk(func, a, b, &xgk, &wg, &wgk, abserr, resabs, resasc)
+    qk(func, a, b, &xgk, &wgk, &wg)
 }
 
 /// Compute the integral of of `f` from `a` to `b` using
@@ -291,9 +285,9 @@ where
 /// * `resasc` - On return, estimation of integral of abs(f-i/(b-a)), where i is the integral of f.
 ///
 #[allow(clippy::excessive_precision, clippy::too_many_arguments)]
-pub fn qk41<F>(func: F, a: f64, b: f64, abserr: &mut f64, resabs: &mut f64, resasc: &mut f64) -> f64
-where
-    F: Fn(f64) -> f64,
+pub fn qk41<F>(func: F, a: f64, b: f64) -> (f64, f64, f64, f64)
+    where
+        F: Fn(f64) -> f64,
 {
     let xgk = [
         0.998_859_031_588_277_663_838_315_576_545_863,
@@ -354,7 +348,7 @@ where
         0.076_600_711_917_999_656_445_049_901_530_102,
     ];
 
-    qk(func, a, b, &xgk, &wg, &wgk, abserr, resabs, resasc)
+    qk(func, a, b, &xgk, &wgk, &wg)
 }
 
 /// Compute the integral of of `f` from `a` to `b` using
@@ -369,9 +363,9 @@ where
 /// * `resabs` - On return, estimation of the integral of abs(f).
 /// * `resasc` - On return, estimation of integral of abs(f-i/(b-a)), where i is the integral of f.
 #[allow(clippy::excessive_precision, clippy::too_many_arguments)]
-pub fn qk51<F>(func: F, a: f64, b: f64, abserr: &mut f64, resabs: &mut f64, resasc: &mut f64) -> f64
-where
-    F: Fn(f64) -> f64,
+pub fn qk51<F>(func: F, a: f64, b: f64) -> (f64, f64, f64, f64)
+    where
+        F: Fn(f64) -> f64,
 {
     let xgk = [
         0.999_262_104_992_609_834_193_457_486_540_341,
@@ -445,7 +439,7 @@ where
         0.061_580_818_067_832_935_078_759_824_240_066,
     ];
 
-    qk(func, a, b, &xgk, &wg, &wgk, abserr, resabs, resasc)
+    qk(func, a, b, &xgk, &wgk, &wg)
 }
 
 /// Compute the integral of of `f` from `a` to `b` using
@@ -460,9 +454,9 @@ where
 /// * `resabs` - On return, estimation of the integral of abs(f).
 /// * `resasc` - On return, estimation of integral of abs(f-i/(b-a)), where i is the integral of f.
 #[allow(clippy::excessive_precision, clippy::too_many_arguments)]
-pub fn qk61<F>(func: F, a: f64, b: f64, abserr: &mut f64, resabs: &mut f64, resasc: &mut f64) -> f64
-where
-    F: Fn(f64) -> f64,
+pub fn qk61<F>(func: F, a: f64, b: f64) -> (f64, f64, f64, f64)
+    where
+        F: Fn(f64) -> f64,
 {
     let xgk = [
         0.999_484_410_050_490_637_571_325_895_705_811,
@@ -548,7 +542,7 @@ where
         0.051_494_729_429_451_567_558_340_433_647_099,
     ];
 
-    qk(func, a, b, &xgk, &wg, &wgk, abserr, resabs, resasc)
+    qk(func, a, b, &xgk, &wgk, &wg)
 }
 
 /// Compute the integral of of `f` from `a` to `b` using
@@ -558,136 +552,18 @@ pub fn fixed_order_gauss_kronrod<F>(
     a: f64,
     b: f64,
     key: u8,
-    abserr: &mut f64,
-    resabs: &mut f64,
-    resasc: &mut f64,
-) -> f64
-where
-    F: Fn(f64) -> f64,
+) -> (f64, f64, f64, f64)
+    where
+        F: Fn(f64) -> f64,
 {
     match key {
-        0 | 1 => qk15(&func, a, b, abserr, resabs, resasc),
-        2 => qk21(&func, a, b, abserr, resabs, resasc),
-        3 => qk31(&func, a, b, abserr, resabs, resasc),
-        4 => qk41(&func, a, b, abserr, resabs, resasc),
-        5 => qk51(&func, a, b, abserr, resabs, resasc),
-        _ => qk61(&func, a, b, abserr, resabs, resasc),
+        0 | 1 => qk15(&func, a, b),
+        2 => qk21(&func, a, b),
+        3 => qk31(&func, a, b),
+        4 => qk41(&func, a, b),
+        5 => qk51(&func, a, b),
+        _ => qk61(&func, a, b),
     }
-}
-
-/// Compute the integral of of `f` on infinite interval using
-/// the 15-point gauss-kronrod rules.
-///
-/// # Arguments
-///
-/// * `f` - Function to integrate
-/// * `a` - Lower bound of integration.
-/// * `b` - Upper bound of integration.
-/// * `abserr` - On return, estimated modulus of absolute error.
-/// * `resabs` - On return, estimation of the integral of abs(f).
-/// * `resasc` - On return, estimation of integral of abs(f-i/(b-a)), where i is the integral of f.
-#[allow(clippy::excessive_precision, clippy::too_many_arguments)]
-pub fn qk15i<F>(
-    f: F,
-    bound: f64,
-    inf: i8,
-    a: f64,
-    b: f64,
-    abserr: &mut f64,
-    resabs: &mut f64,
-    resasc: &mut f64,
-) -> f64
-where
-    F: Fn(f64) -> f64,
-{
-    let xgk = [
-        0.991_455_371_120_812_639_206_854_697_526_329,
-        0.949_107_912_342_758_524_526_189_684_047_851,
-        0.864_864_423_359_769_072_789_712_788_640_926,
-        0.741_531_185_599_394_439_863_864_773_280_788,
-        0.586_087_235_467_691_130_294_144_838_258_730,
-        0.405_845_151_377_397_166_906_606_412_076_961,
-        0.207_784_955_007_898_467_600_689_403_773_245,
-        0.000_000_000_000_000_000_000_000_000_000_000,
-    ];
-    let wg = [
-        0.129_484_966_168_869_693_270_611_432_679_082,
-        0.279_705_391_489_276_667_901_467_771_423_780,
-        0.381_830_050_505_118_944_950_369_775_488_975,
-        0.417_959_183_673_469_387_755_102_040_816_327,
-    ];
-    let wgk = [
-        0.022_935_322_010_529_224_963_732_008_058_970,
-        0.063_092_092_629_978_553_290_700_663_189_204,
-        0.104_790_010_322_250_183_839_876_322_541_518,
-        0.140_653_259_715_525_918_745_189_590_510_238,
-        0.169_004_726_639_267_902_826_583_426_598_550,
-        0.190_350_578_064_785_409_913_256_402_421_014,
-        0.204_432_940_075_298_892_414_161_999_234_649,
-        0.209_482_141_084_727_828_012_999_174_891_714,
-    ];
-
-    let mut fv1: [f64; 8] = [0.0; 8];
-    let mut fv2: [f64; 8] = [0.0; 8];
-    let half: f64 = 0.5;
-
-    let dinf = (inf as f64).min(1.0);
-
-    let centr = half * (a + b);
-    let hlgth = half * (b - a);
-    let tabsc1 = bound + dinf * (1.0 - centr) / centr;
-    let mut fval1 = f(tabsc1);
-    let mut fval2: f64;
-
-    if inf == 2 {
-        fval1 += f(-tabsc1);
-    }
-    let fc = fval1 / centr / centr;
-    let mut resg = fc * wg[3];
-    let mut resk = fc * wgk[7];
-    *resabs = resk.abs();
-
-    for j in 0..7 {
-        let absc = hlgth * xgk[j];
-        let absc1 = centr - absc;
-        let absc2 = centr + absc;
-        let tabsc1 = bound + dinf * (1.0 - absc1) / absc1;
-        let tabsc2 = bound + dinf * (1.0 - absc2) / absc2;
-        fval1 = f(tabsc1);
-        fval2 = f(tabsc2);
-        if inf == 2 {
-            fval1 += f(-tabsc1);
-            fval2 += f(-tabsc2);
-        }
-        fval1 = (fval1 / absc1) / absc1;
-        fval2 = (fval2 / absc2) / absc2;
-        fv1[j] = fval1;
-        fv2[j] = fval2;
-        let fsum = fval1 + fval2;
-        if j % 2 != 0 {
-            resg += wg[j / 2] * fsum;
-        }
-        resk += wgk[j] * fsum;
-        *resabs += wgk[j] * (fval1.abs() + fval2.abs());
-    }
-    let reskh = resk * half;
-    *resasc = wgk[7] * (fc - reskh).abs();
-
-    for j in 0..7 {
-        *resasc += wgk[j] * ((fv1[j] - reskh).abs() + (fv2[j] - reskh).abs());
-    }
-    let result = resk * hlgth;
-    *resabs *= hlgth;
-    *resasc *= hlgth;
-    *abserr = ((resk - resg) * hlgth).abs();
-
-    if (*resasc != 0.0) && (*abserr != 0.0) {
-        *abserr = (*resasc) * ((200.0 * (*abserr) / (*resasc)).powf(1.5)).min(1.0);
-    }
-    if *resabs > f64::min_positive_value() / (50.0 * f64::EPSILON) {
-        *abserr = (f64::EPSILON * 50.0 * (*resabs)).max(*abserr);
-    }
-    result
 }
 
 #[cfg(test)]
@@ -705,9 +581,6 @@ mod test {
 
     #[test]
     fn test_qk15_smooth_pos() {
-        let mut abserr = 0.0;
-        let mut resabs = 0.0;
-        let mut resasc = 0.0;
         let exp_result = 7.716049357767090777E-02;
         let exp_abserr = 2.990224871000550874E-06;
         let exp_resabs = 7.716049357767090777E-02;
@@ -716,20 +589,21 @@ mod test {
         let alpha = 2.6;
         let f = |x| f1(x, alpha);
 
-        let result = qk15(f, 0.0, 1.0, &mut abserr, &mut resabs, &mut resasc);
+        let (result, abserr, resabs, resasc) = qk15(f, 0.0, 1.0);
 
         test_rel(result, exp_result, 1e-15);
         test_rel(abserr, exp_abserr, 1e-7);
         test_rel(resabs, exp_resabs, 1e-15);
         test_rel(resasc, exp_resasc, 1e-15);
 
-        let result = qk15(f, 1.0, 0.0, &mut abserr, &mut resabs, &mut resasc);
+        let (result, abserr, resabs, resasc) = qk15(f, 1.0, 0.0);
 
         test_rel(result, -exp_result, 1e-15);
         test_rel(abserr, exp_abserr, 1e-7);
         test_rel(resabs, exp_resabs, 1e-15);
         test_rel(resasc, exp_resasc, 1e-15);
     }
+
     #[test]
     fn test_qk15_singularity() {
         let mut abserr = 0.0;
@@ -742,20 +616,21 @@ mod test {
 
         let alpha = -0.9;
         let f = |x| f1(x, alpha);
-        let result = qk15(f, 0.0, 1.0, &mut abserr, &mut resabs, &mut resasc);
+        let (result, abserr, resabs, resasc) = qk15(f, 0.0, 1.0);
 
         test_rel(result, exp_result, 1e-15);
         test_rel(abserr, exp_abserr, 1e-7);
         test_rel(resabs, exp_resabs, 1e-15);
         test_rel(resasc, exp_resasc, 1e-15);
 
-        let result = qk15(f, 1.0, 0.0, &mut abserr, &mut resabs, &mut resasc);
+        let (result, abserr, resabs, resasc) = qk15(f, 1.0, 0.0);
 
         test_rel(result, -exp_result, 1e-15);
         test_rel(abserr, exp_abserr, 1e-7);
         test_rel(resabs, exp_resabs, 1e-15);
         test_rel(resasc, exp_resasc, 1e-15);
     }
+
     #[test]
     fn test_qk15_oscillating() {
         let mut abserr = 0.0;
@@ -768,14 +643,14 @@ mod test {
 
         let alpha = 1.3;
         let f = |x| f3(x, alpha);
-        let result = qk15(f, 0.3, 2.71, &mut abserr, &mut resabs, &mut resasc);
+        let (result, abserr, resabs, resasc) = qk15(f, 0.3, 2.71);
 
         test_rel(result, exp_result, 1e-15);
         test_rel(abserr, exp_abserr, 1e-7);
         test_rel(resabs, exp_resabs, 1e-15);
         test_rel(resasc, exp_resasc, 1e-15);
 
-        let result = qk15(f, 2.71, 0.3, &mut abserr, &mut resabs, &mut resasc);
+        let (result, abserr, resabs, resasc) = qk15(f, 2.71, 0.3);
 
         test_rel(result, -exp_result, 1e-15);
         test_rel(abserr, exp_abserr, 1e-7);
@@ -796,20 +671,21 @@ mod test {
         let alpha = 2.6;
         let f = |x| f1(x, alpha);
 
-        let result = qk21(f, 0.0, 1.0, &mut abserr, &mut resabs, &mut resasc);
+        let (result, abserr, resabs, resasc) = qk21(f, 0.0, 1.0);
 
         test_rel(result, exp_result, 1e-15);
         test_rel(abserr, exp_abserr, 1e-7);
         test_rel(resabs, exp_resabs, 1e-15);
         test_rel(resasc, exp_resasc, 1e-15);
 
-        let result = qk21(f, 1.0, 0.0, &mut abserr, &mut resabs, &mut resasc);
+        let (result, abserr, resabs, resasc) = qk21(f, 1.0, 0.0);
 
         test_rel(result, -exp_result, 1e-15);
         test_rel(abserr, exp_abserr, 1e-7);
         test_rel(resabs, exp_resabs, 1e-15);
         test_rel(resasc, exp_resasc, 1e-15);
     }
+
     #[test]
     fn test_qk21_singularity() {
         let mut abserr = 0.0;
@@ -822,20 +698,21 @@ mod test {
 
         let alpha = -0.9;
         let f = |x| f1(x, alpha);
-        let result = qk21(f, 0.0, 1.0, &mut abserr, &mut resabs, &mut resasc);
+        let (result, abserr, resabs, resasc) = qk21(f, 0.0, 1.0);
 
         test_rel(result, exp_result, 1e-15);
         test_rel(abserr, exp_abserr, 1e-7);
         test_rel(resabs, exp_resabs, 1e-15);
         test_rel(resasc, exp_resasc, 1e-15);
 
-        let result = qk21(f, 1.0, 0.0, &mut abserr, &mut resabs, &mut resasc);
+        let (result, abserr, resabs, resasc) = qk21(f, 1.0, 0.0);
 
         test_rel(result, -exp_result, 1e-15);
         test_rel(abserr, exp_abserr, 1e-7);
         test_rel(resabs, exp_resabs, 1e-15);
         test_rel(resasc, exp_resasc, 1e-15);
     }
+
     #[test]
     fn test_qk21_oscillating() {
         let mut abserr = 0.0;
@@ -848,14 +725,14 @@ mod test {
 
         let alpha = 1.3;
         let f = |x| f3(x, alpha);
-        let result = qk21(f, 0.3, 2.71, &mut abserr, &mut resabs, &mut resasc);
+        let (result, abserr, resabs, resasc) = qk21(f, 0.3, 2.71);
 
         test_rel(result, exp_result, 1e-15);
         test_rel(abserr, exp_abserr, 1e-7);
         test_rel(resabs, exp_resabs, 1e-15);
         test_rel(resasc, exp_resasc, 1e-15);
 
-        let result = qk21(f, 2.71, 0.3, &mut abserr, &mut resabs, &mut resasc);
+        let (result, abserr, resabs, resasc) = qk21(f, 2.71, 0.3);
 
         test_rel(result, -exp_result, 1e-15);
         test_rel(abserr, exp_abserr, 1e-7);
@@ -876,20 +753,21 @@ mod test {
         let alpha = 2.6;
         let f = |x| f1(x, alpha);
 
-        let result = qk31(f, 0.0, 1.0, &mut abserr, &mut resabs, &mut resasc);
+        let (result, abserr, resabs, resasc) = qk31(f, 0.0, 1.0);
 
         test_rel(result, exp_result, 1e-15);
         test_rel(abserr, exp_abserr, 1e-7);
         test_rel(resabs, exp_resabs, 1e-15);
         test_rel(resasc, exp_resasc, 1e-15);
 
-        let result = qk31(f, 1.0, 0.0, &mut abserr, &mut resabs, &mut resasc);
+        let (result, abserr, resabs, resasc) = qk31(f, 1.0, 0.0);
 
         test_rel(result, -exp_result, 1e-15);
         test_rel(abserr, exp_abserr, 1e-7);
         test_rel(resabs, exp_resabs, 1e-15);
         test_rel(resasc, exp_resasc, 1e-15);
     }
+
     #[test]
     fn test_qk31_singularity() {
         let mut abserr = 0.0;
@@ -902,20 +780,21 @@ mod test {
 
         let alpha = -0.9;
         let f = |x| f1(x, alpha);
-        let result = qk31(f, 0.0, 1.0, &mut abserr, &mut resabs, &mut resasc);
+        let (result, abserr, resabs, resasc) = qk31(f, 0.0, 1.0);
 
         test_rel(result, exp_result, 1e-15);
         test_rel(abserr, exp_abserr, 1e-7);
         test_rel(resabs, exp_resabs, 1e-15);
         test_rel(resasc, exp_resasc, 1e-15);
 
-        let result = qk31(f, 1.0, 0.0, &mut abserr, &mut resabs, &mut resasc);
+        let (result, abserr, resabs, resasc) = qk31(f, 1.0, 0.0);
 
         test_rel(result, -exp_result, 1e-15);
         test_rel(abserr, exp_abserr, 1e-7);
         test_rel(resabs, exp_resabs, 1e-15);
         test_rel(resasc, exp_resasc, 1e-15);
     }
+
     #[test]
     fn test_qk31_oscillating() {
         let mut abserr = 0.0;
@@ -928,14 +807,14 @@ mod test {
 
         let alpha = 1.3;
         let f = |x| f3(x, alpha);
-        let result = qk31(f, 0.3, 2.71, &mut abserr, &mut resabs, &mut resasc);
+        let (result, abserr, resabs, resasc) = qk31(f, 0.3, 2.71);
 
         test_rel(result, exp_result, 1e-15);
         test_rel(abserr, exp_abserr, 1e-7);
         test_rel(resabs, exp_resabs, 1e-15);
         test_rel(resasc, exp_resasc, 1e-15);
 
-        let result = qk31(f, 2.71, 0.3, &mut abserr, &mut resabs, &mut resasc);
+        let (result, abserr, resabs, resasc) = qk31(f, 2.71, 0.3);
 
         test_rel(result, -exp_result, 1e-15);
         test_rel(abserr, exp_abserr, 1e-7);
@@ -956,20 +835,21 @@ mod test {
         let alpha = 2.6;
         let f = |x| f1(x, alpha);
 
-        let result = qk41(f, 0.0, 1.0, &mut abserr, &mut resabs, &mut resasc);
+        let (result, abserr, resabs, resasc) = qk41(f, 0.0, 1.0);
 
         test_rel(result, exp_result, 1e-15);
         test_rel(abserr, exp_abserr, 1e-7);
         test_rel(resabs, exp_resabs, 1e-15);
         test_rel(resasc, exp_resasc, 1e-15);
 
-        let result = qk41(f, 1.0, 0.0, &mut abserr, &mut resabs, &mut resasc);
+        let (result, abserr, resabs, resasc) = qk41(f, 1.0, 0.0);
 
         test_rel(result, -exp_result, 1e-15);
         test_rel(abserr, exp_abserr, 1e-7);
         test_rel(resabs, exp_resabs, 1e-15);
         test_rel(resasc, exp_resasc, 1e-15);
     }
+
     #[test]
     fn test_qk41_singularity() {
         let mut abserr = 0.0;
@@ -982,20 +862,21 @@ mod test {
 
         let alpha = -0.9;
         let f = |x| f1(x, alpha);
-        let result = qk41(f, 0.0, 1.0, &mut abserr, &mut resabs, &mut resasc);
+        let (result, abserr, resabs, resasc) = qk41(f, 0.0, 1.0);
 
         test_rel(result, exp_result, 1e-15);
         test_rel(abserr, exp_abserr, 1e-7);
         test_rel(resabs, exp_resabs, 1e-15);
         test_rel(resasc, exp_resasc, 1e-15);
 
-        let result = qk41(f, 1.0, 0.0, &mut abserr, &mut resabs, &mut resasc);
+        let (result, abserr, resabs, resasc) = qk41(f, 1.0, 0.0);
 
         test_rel(result, -exp_result, 1e-15);
         test_rel(abserr, exp_abserr, 1e-7);
         test_rel(resabs, exp_resabs, 1e-15);
         test_rel(resasc, exp_resasc, 1e-15);
     }
+
     #[test]
     fn test_qk41_oscillating() {
         let mut abserr = 0.0;
@@ -1008,14 +889,14 @@ mod test {
 
         let alpha = 1.3;
         let f = |x| f3(x, alpha);
-        let result = qk41(f, 0.3, 2.71, &mut abserr, &mut resabs, &mut resasc);
+        let (result, abserr, resabs, resasc) = qk41(f, 0.3, 2.71);
 
         test_rel(result, exp_result, 1e-15);
         test_rel(abserr, exp_abserr, 1e-7);
         test_rel(resabs, exp_resabs, 1e-15);
         test_rel(resasc, exp_resasc, 1e-15);
 
-        let result = qk41(f, 2.71, 0.3, &mut abserr, &mut resabs, &mut resasc);
+        let (result, abserr, resabs, resasc) = qk41(f, 2.71, 0.3);
 
         test_rel(result, -exp_result, 1e-15);
         test_rel(abserr, exp_abserr, 1e-7);
@@ -1036,20 +917,21 @@ mod test {
         let alpha = 2.6;
         let f = |x| f1(x, alpha);
 
-        let result = qk51(f, 0.0, 1.0, &mut abserr, &mut resabs, &mut resasc);
+        let (result, abserr, resabs, resasc) = qk51(f, 0.0, 1.0);
 
         test_rel(result, exp_result, 1e-15);
         test_rel(abserr, exp_abserr, 1e-7);
         test_rel(resabs, exp_resabs, 1e-15);
         test_rel(resasc, exp_resasc, 1e-15);
 
-        let result = qk51(f, 1.0, 0.0, &mut abserr, &mut resabs, &mut resasc);
+        let (result, abserr, resabs, resasc) = qk51(f, 1.0, 0.0);
 
         test_rel(result, -exp_result, 1e-15);
         test_rel(abserr, exp_abserr, 1e-7);
         test_rel(resabs, exp_resabs, 1e-15);
         test_rel(resasc, exp_resasc, 1e-15);
     }
+
     #[test]
     fn test_qk51_singularity() {
         let mut abserr = 0.0;
@@ -1062,20 +944,21 @@ mod test {
 
         let alpha = -0.9;
         let f = |x| f1(x, alpha);
-        let result = qk51(f, 0.0, 1.0, &mut abserr, &mut resabs, &mut resasc);
+        let (result, abserr, resabs, resasc) = qk51(f, 0.0, 1.0);
 
         test_rel(result, exp_result, 1e-15);
         test_rel(abserr, exp_abserr, 1e-7);
         test_rel(resabs, exp_resabs, 1e-15);
         test_rel(resasc, exp_resasc, 1e-15);
 
-        let result = qk51(f, 1.0, 0.0, &mut abserr, &mut resabs, &mut resasc);
+        let (result, abserr, resabs, resasc) = qk51(f, 1.0, 0.0);
 
         test_rel(result, -exp_result, 1e-15);
         test_rel(abserr, exp_abserr, 1e-7);
         test_rel(resabs, exp_resabs, 1e-15);
         test_rel(resasc, exp_resasc, 1e-15);
     }
+
     #[test]
     fn test_qk51_oscillating() {
         let mut abserr = 0.0;
@@ -1088,14 +971,14 @@ mod test {
 
         let alpha = 1.3;
         let f = |x| f3(x, alpha);
-        let result = qk51(f, 0.3, 2.71, &mut abserr, &mut resabs, &mut resasc);
+        let (result, abserr, resabs, resasc) = qk51(f, 0.3, 2.71);
 
         test_rel(result, exp_result, 1e-15);
         test_rel(abserr, exp_abserr, 1e-7);
         test_rel(resabs, exp_resabs, 1e-15);
         test_rel(resasc, exp_resasc, 1e-15);
 
-        let result = qk51(f, 2.71, 0.3, &mut abserr, &mut resabs, &mut resasc);
+        let (result, abserr, resabs, resasc) = qk51(f, 2.71, 0.3);
 
         test_rel(result, -exp_result, 1e-15);
         test_rel(abserr, exp_abserr, 1e-7);
@@ -1116,20 +999,21 @@ mod test {
         let alpha = 2.6;
         let f = |x| f1(x, alpha);
 
-        let result = qk61(f, 0.0, 1.0, &mut abserr, &mut resabs, &mut resasc);
+        let (result, abserr, resabs, resasc) = qk61(f, 0.0, 1.0);
 
         test_rel(result, exp_result, 1e-15);
         test_rel(abserr, exp_abserr, 1e-5);
         test_rel(resabs, exp_resabs, 1e-15);
         test_rel(resasc, exp_resasc, 1e-15);
 
-        let result = qk61(f, 1.0, 0.0, &mut abserr, &mut resabs, &mut resasc);
+        let (result, abserr, resabs, resasc) = qk61(f, 1.0, 0.0);
 
         test_rel(result, -exp_result, 1e-15);
         test_rel(abserr, exp_abserr, 1e-5);
         test_rel(resabs, exp_resabs, 1e-15);
         test_rel(resasc, exp_resasc, 1e-15);
     }
+
     #[test]
     fn test_qk61_singularity() {
         let mut abserr = 0.0;
@@ -1142,20 +1026,21 @@ mod test {
 
         let alpha = -0.9;
         let f = |x| f1(x, alpha);
-        let result = qk61(f, 0.0, 1.0, &mut abserr, &mut resabs, &mut resasc);
+        let (result, abserr, resabs, resasc) = qk61(f, 0.0, 1.0);
 
         test_rel(result, exp_result, 1e-15);
         test_rel(abserr, exp_abserr, 1e-7);
         test_rel(resabs, exp_resabs, 1e-15);
         test_rel(resasc, exp_resasc, 1e-15);
 
-        let result = qk61(f, 1.0, 0.0, &mut abserr, &mut resabs, &mut resasc);
+        let (result, abserr, resabs, resasc) = qk61(f, 1.0, 0.0);
 
         test_rel(result, -exp_result, 1e-15);
         test_rel(abserr, exp_abserr, 1e-7);
         test_rel(resabs, exp_resabs, 1e-15);
         test_rel(resasc, exp_resasc, 1e-15);
     }
+
     #[test]
     fn test_qk61_oscillating() {
         let mut abserr = 0.0;
@@ -1168,14 +1053,14 @@ mod test {
 
         let alpha = 1.3;
         let f = |x| f3(x, alpha);
-        let result = qk61(f, 0.3, 2.71, &mut abserr, &mut resabs, &mut resasc);
+        let (result, abserr, resabs, resasc) = qk61(f, 0.3, 2.71);
 
         test_rel(result, exp_result, 1e-15);
         test_rel(abserr, exp_abserr, 1e-7);
         test_rel(resabs, exp_resabs, 1e-15);
         test_rel(resasc, exp_resasc, 1e-15);
 
-        let result = qk61(f, 2.71, 0.3, &mut abserr, &mut resabs, &mut resasc);
+        let (result, abserr, resabs, resasc) = qk61(f, 2.71, 0.3);
 
         test_rel(result, -exp_result, 1e-15);
         test_rel(abserr, exp_abserr, 1e-7);

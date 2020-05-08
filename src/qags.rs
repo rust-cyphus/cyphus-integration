@@ -17,11 +17,7 @@ pub fn qags<F>(
     where
         F: Fn(f64) -> f64,
 {
-    let mut result = IntegrationResult {
-        val: 0.0,
-        err: 0.0,
-        code: IntegrationRetCode::Success,
-    };
+    let mut result = IntegrationResult::new();
 
     let mut workspace = IntegrationWorkSpace::new(limit);
     workspace.alist[0] = a;

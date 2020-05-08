@@ -36,9 +36,21 @@ pub struct IntegrationResult {
     pub err: f64,
     /// Return code
     pub code: IntegrationRetCode,
+    /// Number of function evaluations
+    pub nevals: usize,
 }
 
 impl IntegrationResult {
+    /// Construct a new integration results struct with zeros for values
+    /// and "Success" for code.
+    pub(crate) fn new() -> IntegrationResult {
+        IntegrationResult {
+            val: 0.0,
+            err: 0.0,
+            code: IntegrationRetCode::Success,
+            nevals: 0,
+        }
+    }
     pub(crate) fn issue_warning(&self, args: Option<&[f64]>) {
         match self.code {
             IntegrationRetCode::Success => {}

@@ -16,11 +16,7 @@ pub fn qag<F>(
     where
         F: Fn(f64) -> f64,
 {
-    let mut result = IntegrationResult {
-        val: 0.0,
-        err: 0.0,
-        code: IntegrationRetCode::Success,
-    };
+    let mut result = IntegrationResult::new();
 
     // Roundoff detection counters
     let mut roundoff_type1: usize = 0;

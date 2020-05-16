@@ -31,6 +31,16 @@ impl IntegrationWorkSpace {
         let i = self.i;
         (self.alist[i], self.blist[i], self.rlist[i], self.elist[i])
     }
+    pub fn append_interval(&mut self, a: f64, b: f64, area: f64, error: f64) {
+        let inew = self.size;
+        self.alist[inew] = a;
+        self.blist[inew] = b;
+        self.rlist[inew] = area;
+        self.elist[inew] = error;
+        self.order[inew] = inew;
+        self.level[inew] = 0;
+        self.size += 1;
+    }
     pub fn update(&mut self, point1: (f64, f64, f64, f64), point2: (f64, f64, f64, f64)) {
         let (a1, b1, area1, error1) = point1;
         let (a2, b2, area2, error2) = point2;
@@ -167,6 +177,28 @@ impl IntegrationWorkSpace {
         i_maxerr = self.order[i_nrmax];
         self.i = i_maxerr;
         self.nrmax = i_nrmax;
+    }
+    pub fn sort_results(&mut self) {
+        let nint = self.size;
+        for i in 0..nint {
+            let i1 = self.order[i];
+            let mut e1 = self.elist[i1];
+            let mut imax = i1;
+
+            for j in (i + 1)..nint {
+                let i2 = self.order[j];
+                let e2 = self.elist[i2];
+                if e2 >= e1 {
+                    imax = i2;
+                    e1 = e2;
+                }
+            }
+            if imax != i1 {
+                self.order[i] = self.order[imax];
+                self.order[imax] = i1;
+            }
+        }
+        self.i = self.order[0];
     }
 }
 

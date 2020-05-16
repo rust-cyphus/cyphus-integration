@@ -70,7 +70,8 @@ impl ExtrapolationTable {
             let tol3 = e1abs.max(e0.abs()) * f64::EPSILON;
 
             if err2 <= tol2 && err3 <= tol3 {
-                // If e0, e1 and e2 are equal to within machine accuracy, convergence is assumed.
+                // If e0, e1 and e2 are equal to within machine accuracy,
+                // convergence is assumed.
                 result = res;
                 absolute = err2 + err3;
                 relative = 5.0 * f64::EPSILON * res.abs();
@@ -84,7 +85,8 @@ impl ExtrapolationTable {
             let err1 = delta1.abs();
             let tol1 = e1abs.max(e3.abs()) * f64::EPSILON;
 
-            // If two elements are very close to each other, omit a part of the table by adjusting the value of n
+            // If two elements are very close to each other, omit a part of
+            // the table by adjusting the value of n
             if err1 <= tol1 || err2 <= tol2 || err3 <= tol3 {
                 nfinal = 2 * i;
                 break;
@@ -92,7 +94,8 @@ impl ExtrapolationTable {
 
             let ss = delta1.recip() + delta2.recip() - delta3.recip();
 
-            // Test to detect irregular behaviour in the table, and eventually omit a part of the table by adjusting the value of n.
+            // Test to detect irregular behaviour in the table, and eventually
+            // omit a part of the table by adjusting the value of n.
             if (ss * e1).abs() <= 1e-4 {
                 nfinal = 2 * i;
                 break;

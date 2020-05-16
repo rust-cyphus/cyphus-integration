@@ -63,6 +63,12 @@ pub(crate) fn f16(x: f64, alpha: f64) -> f64 {
     }
 }
 
+pub(crate) fn f454(x: f64) -> f64 {
+    let x2: f64 = x * x;
+    let x3: f64 = x * x2;
+    x3 * ((x2 - 1.0) * (x2 - 2.0)).abs().ln()
+}
+
 pub(crate) fn f455(x: f64) -> f64 {
     x.ln() / (1.0 + 100.0 * x * x)
 }

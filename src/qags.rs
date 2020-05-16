@@ -1,8 +1,8 @@
 use crate::extrap::ExtrapolationTable;
 use crate::qk::fixed_order_gauss_kronrod;
+use crate::result::{IntegrationResult, IntegrationRetCode};
 use crate::utils::{subinterval_too_small, test_positivity};
 use crate::workspace::IntegrationWorkSpace;
-use crate::result::{IntegrationRetCode, IntegrationResult};
 
 #[allow(clippy::too_many_arguments)]
 pub fn qags<F>(
@@ -14,8 +14,8 @@ pub fn qags<F>(
     limit: usize,
     key: u8,
 ) -> IntegrationResult
-    where
-        F: Fn(f64) -> f64,
+where
+    F: Fn(f64) -> f64,
 {
     let mut result = IntegrationResult::new();
 
@@ -31,7 +31,7 @@ pub fn qags<F>(
     }
 
     // Perform the first integration
-    let (val, err, mut resabs, mut resasc) = fixed_order_gauss_kronrod(&f, a, b, key);
+    let (val, err, resabs, resasc) = fixed_order_gauss_kronrod(&f, a, b, key);
     result.val = val;
     result.err = err;
 
@@ -221,7 +221,6 @@ pub fn qags<F>(
             break;
         }
     }
-
 
     result.val = res_ext;
     result.err = err_ext;

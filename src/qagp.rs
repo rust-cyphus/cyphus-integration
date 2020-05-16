@@ -1,3 +1,38 @@
+//! qagp
+//!
+//! Implements the adaptive Gauss-Kronrod integration for integrals with known
+//! singular points. Adapted from the GNU Scientific Library. See:
+//! Brian Gough. 2009. GNU Scientific Library Reference Manual - Third Edition (3rd. ed.). Network Theory Ltd.
+//!
+//! # Examples
+//! Integrate f(x) = x^3 ln(|(x^2-1)(x^2-2)|) from 0 to 3. We can see that this
+//! function is singular at x = 1 and x = sqrt(2).
+//! ```
+//! let f = |x: f64| ((x * x - 1.0) * (x * x - 2.0)).abs().ln() * x.powi(3);
+//! let pts = vec![0.0, 1.0, 2.0f64.sqrt(), 3.0];
+//! let result = qagp(f, &pts, 1e-3, 0.0, 1000, 2);
+//! let analytic = 52.7407483834712;
+//! assert!((result.val - analytic).abs() < 1e-3);
+//! ```
+
+// GSL License:
+//
+// Copyright (C) 1996, 1997, 1998, 1999, 2000, 2001, 2007 Brian Gough
+//
+// This program is free software; you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation; either version 3 of the License, or (at
+// your option) any later version.
+//
+// This program is distributed in the hope that it will be useful, but
+// WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+// General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program; if not, write to the Free Software
+// Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+
 use crate::extrap::ExtrapolationTable;
 use crate::qk::fixed_order_gauss_kronrod;
 use crate::result::*;

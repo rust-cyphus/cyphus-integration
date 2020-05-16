@@ -1,7 +1,25 @@
+// GSL License:
+//
+// Copyright (C) 1996, 1997, 1998, 1999, 2000, 2001, 2007 Brian Gough
+//
+// This program is free software; you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation; either version 3 of the License, or (at
+// your option) any later version.
+//
+// This program is distributed in the hope that it will be useful, but
+// WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+// General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program; if not, write to the Free Software
+// Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+
 use crate::qk::fixed_order_gauss_kronrod;
+use crate::result::{IntegrationResult, IntegrationRetCode};
 use crate::utils::subinterval_too_small;
 use crate::workspace::IntegrationWorkSpace;
-use crate::result::{IntegrationResult, IntegrationRetCode};
 
 #[allow(clippy::too_many_arguments)]
 pub fn qag<F>(
@@ -13,8 +31,8 @@ pub fn qag<F>(
     limit: usize,
     key: u8,
 ) -> IntegrationResult
-    where
-        F: Fn(f64) -> f64,
+where
+    F: Fn(f64) -> f64,
 {
     let mut result = IntegrationResult::new();
 
@@ -26,7 +44,6 @@ pub fn qag<F>(
     let mut workspace = IntegrationWorkSpace::new(limit);
     workspace.alist[0] = a;
     workspace.blist[0] = b;
-
 
     // Check the tolerances
     if epsabs <= 0.0 && (epsrel < 50.0 * f64::EPSILON || epsrel < 0.5e-28) {
@@ -159,8 +176,10 @@ mod test {
 
         let result = qag(f, 0.3, 2.71, 1e-14, 0.0, 1000, 3);
 
-        assert!(result.code == IntegrationRetCode::RoundOff || result.code ==
-            IntegrationRetCode::RoundOffFirstIter);
+        assert!(
+            result.code == IntegrationRetCode::RoundOff
+                || result.code == IntegrationRetCode::RoundOffFirstIter
+        );
     }
 
     #[test]

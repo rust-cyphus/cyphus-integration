@@ -1,3 +1,21 @@
+// GSL License:
+//
+// Copyright (C) 1996, 1997, 1998, 1999, 2000, 2001, 2007 Brian Gough
+//
+// This program is free software; you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation; either version 3 of the License, or (at
+// your option) any later version.
+//
+// This program is distributed in the hope that it will be useful, but
+// WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+// General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program; if not, write to the Free Software
+// Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+
 fn rescale_error(err: f64, res_abs: f64, res_asc: f64) -> f64 {
     let mut scaled_err = err.abs();
 
@@ -30,16 +48,9 @@ fn rescale_error(err: f64, res_abs: f64, res_asc: f64) -> f64 {
 /// * `a` - Lower bound of integration
 /// * `b` - Upper bound of integration
 #[allow(clippy::too_many_arguments)]
-pub fn qk<F>(
-    func: F,
-    a: f64,
-    b: f64,
-    xgk: &[f64],
-    wgk: &[f64],
-    wg: &[f64],
-) -> (f64, f64, f64, f64)
-    where
-        F: Fn(f64) -> f64,
+pub fn qk<F>(func: F, a: f64, b: f64, xgk: &[f64], wgk: &[f64], wg: &[f64]) -> (f64, f64, f64, f64)
+where
+    F: Fn(f64) -> f64,
 {
     let n: usize = xgk.len();
 
@@ -117,8 +128,8 @@ pub fn qk<F>(
 /// * `resasc` - On return, estimation of integral of abs(f-i/(b-a)), where i is the integral of f.
 #[allow(clippy::excessive_precision, clippy::too_many_arguments)]
 pub fn qk15<F>(func: F, a: f64, b: f64) -> (f64, f64, f64, f64)
-    where
-        F: Fn(f64) -> f64,
+where
+    F: Fn(f64) -> f64,
 {
     let xgk = [
         0.991_455_371_120_812_639_206_854_697_526_329,
@@ -147,7 +158,6 @@ pub fn qk15<F>(func: F, a: f64, b: f64) -> (f64, f64, f64, f64)
         0.209_482_141_084_727_828_012_999_174_891_714,
     ];
 
-
     qk(func, a, b, &xgk, &wgk, &wg)
 }
 
@@ -165,8 +175,8 @@ pub fn qk15<F>(func: F, a: f64, b: f64) -> (f64, f64, f64, f64)
 ///
 #[allow(clippy::excessive_precision, clippy::too_many_arguments)]
 pub fn qk21<F>(func: F, a: f64, b: f64) -> (f64, f64, f64, f64)
-    where
-        F: Fn(f64) -> f64,
+where
+    F: Fn(f64) -> f64,
 {
     let xgk = [
         0.995_657_163_025_808_080_735_527_280_689_003,
@@ -219,8 +229,8 @@ pub fn qk21<F>(func: F, a: f64, b: f64) -> (f64, f64, f64, f64)
 ///
 #[allow(clippy::excessive_precision, clippy::too_many_arguments)]
 pub fn qk31<F>(func: F, a: f64, b: f64) -> (f64, f64, f64, f64)
-    where
-        F: Fn(f64) -> f64,
+where
+    F: Fn(f64) -> f64,
 {
     let xgk = [
         0.998_002_298_693_397_060_285_172_840_152_271,
@@ -286,8 +296,8 @@ pub fn qk31<F>(func: F, a: f64, b: f64) -> (f64, f64, f64, f64)
 ///
 #[allow(clippy::excessive_precision, clippy::too_many_arguments)]
 pub fn qk41<F>(func: F, a: f64, b: f64) -> (f64, f64, f64, f64)
-    where
-        F: Fn(f64) -> f64,
+where
+    F: Fn(f64) -> f64,
 {
     let xgk = [
         0.998_859_031_588_277_663_838_315_576_545_863,
@@ -364,8 +374,8 @@ pub fn qk41<F>(func: F, a: f64, b: f64) -> (f64, f64, f64, f64)
 /// * `resasc` - On return, estimation of integral of abs(f-i/(b-a)), where i is the integral of f.
 #[allow(clippy::excessive_precision, clippy::too_many_arguments)]
 pub fn qk51<F>(func: F, a: f64, b: f64) -> (f64, f64, f64, f64)
-    where
-        F: Fn(f64) -> f64,
+where
+    F: Fn(f64) -> f64,
 {
     let xgk = [
         0.999_262_104_992_609_834_193_457_486_540_341,
@@ -455,8 +465,8 @@ pub fn qk51<F>(func: F, a: f64, b: f64) -> (f64, f64, f64, f64)
 /// * `resasc` - On return, estimation of integral of abs(f-i/(b-a)), where i is the integral of f.
 #[allow(clippy::excessive_precision, clippy::too_many_arguments)]
 pub fn qk61<F>(func: F, a: f64, b: f64) -> (f64, f64, f64, f64)
-    where
-        F: Fn(f64) -> f64,
+where
+    F: Fn(f64) -> f64,
 {
     let xgk = [
         0.999_484_410_050_490_637_571_325_895_705_811,
@@ -547,14 +557,9 @@ pub fn qk61<F>(func: F, a: f64, b: f64) -> (f64, f64, f64, f64)
 
 /// Compute the integral of of `f` from `a` to `b` using
 /// the one of the Gauss-Kronrod rules.
-pub fn fixed_order_gauss_kronrod<F>(
-    func: F,
-    a: f64,
-    b: f64,
-    key: u8,
-) -> (f64, f64, f64, f64)
-    where
-        F: Fn(f64) -> f64,
+pub fn fixed_order_gauss_kronrod<F>(func: F, a: f64, b: f64, key: u8) -> (f64, f64, f64, f64)
+where
+    F: Fn(f64) -> f64,
 {
     match key {
         0 | 1 => qk15(&func, a, b),

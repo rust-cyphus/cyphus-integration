@@ -1,5 +1,23 @@
-use crate::result::IntegrationResult;
+// GSL License:
+//
+// Copyright (C) 1996, 1997, 1998, 1999, 2000, 2001, 2007 Brian Gough
+//
+// This program is free software; you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation; either version 3 of the License, or (at
+// your option) any later version.
+//
+// This program is distributed in the hope that it will be useful, but
+// WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+// General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program; if not, write to the Free Software
+// Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+
 use crate::qags::qags;
+use crate::result::IntegrationResult;
 
 /// Integrate a function over an infinite, semi-infinit or finite interval by
 /// transforming the integrand to a new function defined over a finite interval
@@ -14,8 +32,8 @@ pub fn qagi<F>(
     limit: usize,
     key: u8,
 ) -> IntegrationResult
-    where
-        F: Fn(f64) -> f64,
+where
+    F: Fn(f64) -> f64,
 {
     let sign = if a < b { 1.0 } else { -1.0 };
     let (aa, bb) = if a < b { (a, b) } else { (b, a) };
@@ -57,7 +75,6 @@ pub fn qagi<F>(
 mod tests {
     use super::*;
     use crate::test_utils::*;
-
 
     #[test]
     fn test_0_inf_f455() {

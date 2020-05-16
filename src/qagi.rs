@@ -57,7 +57,6 @@ pub fn qagi<F>(
 mod tests {
     use super::*;
     use crate::test_utils::*;
-    use std::f64::consts::PI;
 
 
     #[test]

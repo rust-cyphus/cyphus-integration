@@ -1,5 +1,5 @@
 # cyphus-integration
-Rust library for numerical integration
+Rust library for numerical integration based on GSL.
 
 ## Usage
 

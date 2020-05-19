@@ -266,10 +266,8 @@ where
         // bisecting decrease the sum of the errors over the larger
         // intervals (error_over_large_intervals) and perform
         // extrapolation.
-        if !error_type2 && error_over_large_intervals > ertest {
-            if workspace.increase_nrmax() {
-                continue;
-            }
+        if !error_type2 && error_over_large_intervals > ertest && workspace.increase_nrmax() {
+            continue;
         }
 
         // Perform extrapolation
@@ -354,7 +352,7 @@ where
     if ratio < 1e-2 || ratio > 1e2 || errsum > area.abs() {
         result.code = IntegrationRetCode::Other;
     }
-    return result;
+    result
 }
 
 #[cfg(test)]

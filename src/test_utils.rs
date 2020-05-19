@@ -49,12 +49,12 @@ pub(crate) fn f11(x: f64, alpha: f64) -> f64 {
 
 /// Function 15 for integration testing
 pub(crate) fn f15(x: f64, alpha: f64) -> f64 {
-    x * x * (-2f64.powf(-alpha) * x).exp()
+    x * x * (-(2f64.powf(-alpha)) * x).exp()
 }
 
 /// Function 16 for integration testing
 pub(crate) fn f16(x: f64, alpha: f64) -> f64 {
-    if x == 0.0 && alpha == 1.0 {
+    if x == 0.0 && (alpha - 1.0).abs() < f64::EPSILON {
         1.0
     } else if x == 0.0 && alpha > 1.0 {
         0.0

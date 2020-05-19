@@ -146,7 +146,7 @@ impl IntegrationWorkSpace {
             return;
         }
 
-        let mut errmax = self.elist[i_maxerr];
+        let errmax = self.elist[i_maxerr];
 
         // This part of the routine is only executed if, due to a difficult
         // integrand, subdivision increased the error estimate. In the normal

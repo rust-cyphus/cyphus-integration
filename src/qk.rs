@@ -474,8 +474,8 @@ where
     qk(func, a, b, &(*XGK51), &(*WGK51), &(*WG51))
 }
 
+#[allow(clippy::excessive_precision)]
 lazy_static! {
-    #[allow(clippy::excessive_precision)]
     static ref XGK61: [f64; 31] = [
         0.999_484_410_050_490_637_571_325_895_705_811,
         0.996_893_484_074_649_540_271_630_050_918_695,

@@ -27,14 +27,6 @@ impl GaussKronrodIntegrator {
     where
         F: Fn(f64) -> f64,
     {
-        if a == b {
-            return IntegrationResult::new();
-        }
-        let (aa, bb) = if a < b { (a, b) } else { (b, a) };
-
-        // [-inf, a, b, c, d, e, inf]
-        // [-inf, a], [a, b, c, d, e], [e, inf]
-
         // Check if we have infinite endpoints
         if a.is_infinite() || b.is_infinite() {
             if !self.singular_points.is_empty() {
@@ -90,33 +82,33 @@ impl GaussKronrodIntegrator {
                         self.key,
                     );
                 }
-                return IntegrationResult {
+                IntegrationResult {
                     val: res1.val + res2.val + res3.val,
                     err: res1.err + res2.err + res3.err,
                     code: IntegrationRetCode::Success,
                     nevals: res1.nevals + res2.nevals + res3.nevals,
-                };
+                }
             } else {
-                return qagi(f, a, b, self.epsabs, self.epsrel, self.limit, self.key);
+                qagi(f, a, b, self.epsabs, self.epsrel, self.limit, self.key)
             }
         } else if self.singular_points.is_empty() {
-            return qags(f, a, b, self.epsabs, self.epsrel, self.limit, self.key);
+            qags(f, a, b, self.epsabs, self.epsrel, self.limit, self.key)
         } else {
             let mut singular_points = vec![a];
             singular_points.reserve(self.singular_points.len() + 1);
             for pt in self.singular_points.iter() {
-                singular_points.push(pt.clone());
+                singular_points.push(*pt);
             }
             singular_points.push(b);
 
-            return qagp(
+            qagp(
                 f,
                 &singular_points,
                 self.epsabs,
                 self.epsrel,
                 self.limit,
                 self.key,
-            );
+            )
         }
     }
 }
@@ -139,24 +131,24 @@ impl GaussKronrodIntegratorBuilder {
             singular_points: vec![],
         }
     }
-    pub fn epsabs<'a>(&'a mut self, epsabs: f64) -> &'a mut Self {
+    pub fn epsabs(mut self, epsabs: f64) -> Self {
         self.epsabs = epsabs;
         self
     }
-    pub fn epsrel<'a>(&'a mut self, epsrel: f64) -> &'a mut Self {
+    pub fn epsrel(mut self, epsrel: f64) -> Self {
         self.epsrel = epsrel;
         self
     }
-    pub fn limit<'a>(&'a mut self, limit: usize) -> &'a mut Self {
+    pub fn limit(mut self, limit: usize) -> Self {
         self.limit = limit;
         self
     }
-    pub fn key<'a>(&'a mut self, key: u8) -> &'a mut Self {
+    pub fn key(mut self, key: u8) -> Self {
         self.key = key;
         self
     }
-    pub fn singular_points<'a>(&'a mut self, singular_points: Vec<f64>) -> &'a mut Self {
-        self.singular_points = singular_points.clone();
+    pub fn singular_points(mut self, singular_points: Vec<f64>) -> Self {
+        self.singular_points = singular_points;
         // Sort break-points and delete duplicates
         self.singular_points
             .sort_by(|a, b| a.partial_cmp(b).unwrap());

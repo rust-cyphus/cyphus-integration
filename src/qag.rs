@@ -53,7 +53,7 @@ where
     }
 
     // Perform the first integration
-    let (val, err, mut resabs, mut resasc) = fixed_order_gauss_kronrod(&f, a, b, key);
+    let (val, err, resabs, resasc) = fixed_order_gauss_kronrod(&f, a, b, key);
     result.val = val;
     result.err = err;
     workspace.rlist[0] = result.val;

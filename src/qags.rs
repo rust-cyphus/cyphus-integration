@@ -194,10 +194,8 @@ where
             extrapolate = true;
             workspace.nrmax = 1;
         }
-        if !error_type2 && error_over_large_intervals > ertest {
-            if workspace.increase_nrmax() {
-                continue;
-            }
+        if !error_type2 && error_over_large_intervals > ertest && workspace.increase_nrmax() {
+            continue;
         }
 
         // Perform extrapolation
@@ -251,7 +249,7 @@ where
 
     if result.code == IntegrationRetCode::TooManyIters || error_type2 {
         if error_type2 {
-            err_ext = err_ext + correc;
+            err_ext += correc;
         }
         if result.code == IntegrationRetCode::Success {
             result.code = IntegrationRetCode::BadIntegrand;
@@ -286,8 +284,7 @@ where
             result.code = IntegrationRetCode::Other;
         }
     }
-
-    return result;
+    result
 }
 
 #[cfg(test)]

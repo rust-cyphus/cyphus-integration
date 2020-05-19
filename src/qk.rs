@@ -16,6 +16,8 @@
 // along with this program; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 
+use lazy_static::lazy_static;
+
 fn rescale_error(err: f64, res_abs: f64, res_asc: f64) -> f64 {
     let mut scaled_err = err.abs();
 
@@ -115,6 +117,38 @@ where
     (res_kronrod, abserr, res_abs, res_asc)
 }
 
+lazy_static! {
+    #[allow(clippy::excessive_precision)]
+    static ref XGK15: [f64; 8] = [
+        0.991_455_371_120_812_639_206_854_697_526_329,
+        0.949_107_912_342_758_524_526_189_684_047_851,
+        0.864_864_423_359_769_072_789_712_788_640_926,
+        0.741_531_185_599_394_439_863_864_773_280_788,
+        0.586_087_235_467_691_130_294_144_838_258_730,
+        0.405_845_151_377_397_166_906_606_412_076_961,
+        0.207_784_955_007_898_467_600_689_403_773_245,
+        0.000_000_000_000_000_000_000_000_000_000_000,
+    ];
+    #[allow(clippy::excessive_precision)]
+    static ref WG15: [f64; 4] = [
+        0.129_484_966_168_869_693_270_611_432_679_082,
+        0.279_705_391_489_276_667_901_467_771_423_780,
+        0.381_830_050_505_118_944_950_369_775_488_975,
+        0.417_959_183_673_469_387_755_102_040_816_327,
+    ];
+    #[allow(clippy::excessive_precision)]
+    static ref WGK15: [f64; 8] = [
+        0.022_935_322_010_529_224_963_732_008_058_970,
+        0.063_092_092_629_978_553_290_700_663_189_204,
+        0.104_790_010_322_250_183_839_876_322_541_518,
+        0.140_653_259_715_525_918_745_189_590_510_238,
+        0.169_004_726_639_267_902_826_583_426_598_550,
+        0.190_350_578_064_785_409_913_256_402_421_014,
+        0.204_432_940_075_298_892_414_161_999_234_649,
+        0.209_482_141_084_727_828_012_999_174_891_714,
+    ];
+}
+
 /// Compute the integral of of `f` from `a` to `b` using
 /// the 15-point gauss-kronrod rules.
 ///
@@ -126,39 +160,50 @@ where
 /// * `abserr` - On return, estimated modulus of absolute error.
 /// * `resabs` - On return, estimation of the integral of abs(f).
 /// * `resasc` - On return, estimation of integral of abs(f-i/(b-a)), where i is the integral of f.
-#[allow(clippy::excessive_precision, clippy::too_many_arguments)]
 pub fn qk15<F>(func: F, a: f64, b: f64) -> (f64, f64, f64, f64)
 where
     F: Fn(f64) -> f64,
 {
-    let xgk = [
-        0.991_455_371_120_812_639_206_854_697_526_329,
-        0.949_107_912_342_758_524_526_189_684_047_851,
-        0.864_864_423_359_769_072_789_712_788_640_926,
-        0.741_531_185_599_394_439_863_864_773_280_788,
-        0.586_087_235_467_691_130_294_144_838_258_730,
-        0.405_845_151_377_397_166_906_606_412_076_961,
-        0.207_784_955_007_898_467_600_689_403_773_245,
+    qk(func, a, b, &(*XGK15), &(*WGK15), &(*WG15))
+}
+
+lazy_static! {
+    #[allow(clippy::excessive_precision)]
+    static ref XGK21: [f64; 11] = [
+        0.995_657_163_025_808_080_735_527_280_689_003,
+        0.973_906_528_517_171_720_077_964_012_084_452,
+        0.930_157_491_355_708_226_001_207_180_059_508,
+        0.865_063_366_688_984_510_732_096_688_423_493,
+        0.780_817_726_586_416_897_063_717_578_345_042,
+        0.679_409_568_299_024_406_234_327_365_114_874,
+        0.562_757_134_668_604_683_339_000_099_272_694,
+        0.433_395_394_129_247_190_799_265_943_165_784,
+        0.294_392_862_701_460_198_131_126_603_103_866,
+        0.148_874_338_981_631_210_884_826_001_129_720,
         0.000_000_000_000_000_000_000_000_000_000_000,
     ];
-    let wg = [
-        0.129_484_966_168_869_693_270_611_432_679_082,
-        0.279_705_391_489_276_667_901_467_771_423_780,
-        0.381_830_050_505_118_944_950_369_775_488_975,
-        0.417_959_183_673_469_387_755_102_040_816_327,
+    #[allow(clippy::excessive_precision)]
+    static ref WG21: [f64; 5] = [
+        0.066_671_344_308_688_137_593_568_809_893_332,
+        0.149_451_349_150_580_593_145_776_339_657_697,
+        0.219_086_362_515_982_043_995_534_934_228_163,
+        0.269_266_719_309_996_355_091_226_921_569_469,
+        0.295_524_224_714_752_870_173_892_994_651_338,
     ];
-    let wgk = [
-        0.022_935_322_010_529_224_963_732_008_058_970,
-        0.063_092_092_629_978_553_290_700_663_189_204,
-        0.104_790_010_322_250_183_839_876_322_541_518,
-        0.140_653_259_715_525_918_745_189_590_510_238,
-        0.169_004_726_639_267_902_826_583_426_598_550,
-        0.190_350_578_064_785_409_913_256_402_421_014,
-        0.204_432_940_075_298_892_414_161_999_234_649,
-        0.209_482_141_084_727_828_012_999_174_891_714,
+    #[allow(clippy::excessive_precision)]
+    static ref WGK21: [f64; 11] = [
+        0.011_694_638_867_371_874_278_064_396_062_192,
+        0.032_558_162_307_964_727_478_818_972_459_390,
+        0.054_755_896_574_351_996_031_381_300_244_580,
+        0.075_039_674_810_919_952_767_043_140_916_190,
+        0.093_125_454_583_697_605_535_065_465_083_366,
+        0.109_387_158_802_297_641_899_210_590_325_805,
+        0.123_491_976_262_065_851_077_958_109_831_074,
+        0.134_709_217_311_473_325_928_054_001_771_707,
+        0.142_775_938_577_060_080_797_094_273_138_717,
+        0.147_739_104_901_338_491_374_841_515_972_068,
+        0.149_445_554_002_916_905_664_936_468_389_821,
     ];
-
-    qk(func, a, b, &xgk, &wgk, &wg)
 }
 
 /// Compute the integral of of `f` from `a` to `b` using
@@ -173,66 +218,16 @@ where
 /// * `resabs` - On return, estimation of the integral of abs(f).
 /// * `resasc` - On return, estimation of integral of abs(f-i/(b-a)), where i is the integral of f.
 ///
-#[allow(clippy::excessive_precision, clippy::too_many_arguments)]
 pub fn qk21<F>(func: F, a: f64, b: f64) -> (f64, f64, f64, f64)
 where
     F: Fn(f64) -> f64,
 {
-    let xgk = [
-        0.995_657_163_025_808_080_735_527_280_689_003,
-        0.973_906_528_517_171_720_077_964_012_084_452,
-        0.930_157_491_355_708_226_001_207_180_059_508,
-        0.865_063_366_688_984_510_732_096_688_423_493,
-        0.780_817_726_586_416_897_063_717_578_345_042,
-        0.679_409_568_299_024_406_234_327_365_114_874,
-        0.562_757_134_668_604_683_339_000_099_272_694,
-        0.433_395_394_129_247_190_799_265_943_165_784,
-        0.294_392_862_701_460_198_131_126_603_103_866,
-        0.148_874_338_981_631_210_884_826_001_129_720,
-        0.000_000_000_000_000_000_000_000_000_000_000,
-    ];
-    let wg = [
-        0.066_671_344_308_688_137_593_568_809_893_332,
-        0.149_451_349_150_580_593_145_776_339_657_697,
-        0.219_086_362_515_982_043_995_534_934_228_163,
-        0.269_266_719_309_996_355_091_226_921_569_469,
-        0.295_524_224_714_752_870_173_892_994_651_338,
-    ];
-    let wgk = [
-        0.011_694_638_867_371_874_278_064_396_062_192,
-        0.032_558_162_307_964_727_478_818_972_459_390,
-        0.054_755_896_574_351_996_031_381_300_244_580,
-        0.075_039_674_810_919_952_767_043_140_916_190,
-        0.093_125_454_583_697_605_535_065_465_083_366,
-        0.109_387_158_802_297_641_899_210_590_325_805,
-        0.123_491_976_262_065_851_077_958_109_831_074,
-        0.134_709_217_311_473_325_928_054_001_771_707,
-        0.142_775_938_577_060_080_797_094_273_138_717,
-        0.147_739_104_901_338_491_374_841_515_972_068,
-        0.149_445_554_002_916_905_664_936_468_389_821,
-    ];
-
-    qk(func, a, b, &xgk, &wgk, &wg)
+    qk(func, a, b, &(*XGK21), &(*WGK21), &(*WG21))
 }
 
-/// Compute the integral of of `f` from `a` to `b` using
-/// the 31-point gauss-kronrod rules.
-///
-/// # Arguments
-///
-/// * `f` - Function to integrate
-/// * `a` - Lower bound of integration.
-/// * `b` - Upper bound of integration.
-/// * `abserr` - On return, estimated modulus of absolute error.
-/// * `resabs` - On return, estimation of the integral of abs(f).
-/// * `resasc` - On return, estimation of integral of abs(f-i/(b-a)), where i is the integral of f.
-///
-#[allow(clippy::excessive_precision, clippy::too_many_arguments)]
-pub fn qk31<F>(func: F, a: f64, b: f64) -> (f64, f64, f64, f64)
-where
-    F: Fn(f64) -> f64,
-{
-    let xgk = [
+lazy_static! {
+    #[allow(clippy::excessive_precision)]
+    static ref XGK31: [f64; 16] = [
         0.998_002_298_693_397_060_285_172_840_152_271,
         0.987_992_518_020_485_428_489_565_718_586_613,
         0.967_739_075_679_139_134_257_347_978_784_337,
@@ -250,7 +245,8 @@ where
         0.101_142_066_918_717_499_027_074_231_447_392,
         0.000_000_000_000_000_000_000_000_000_000_000,
     ];
-    let wg = [
+    #[allow(clippy::excessive_precision)]
+    static ref WG31: [f64; 8] = [
         0.030_753_241_996_117_268_354_628_393_577_204,
         0.070_366_047_488_108_124_709_267_416_450_667,
         0.107_159_220_467_171_935_011_869_546_685_869,
@@ -260,7 +256,8 @@ where
         0.198_431_485_327_111_576_456_118_326_443_839,
         0.202_578_241_925_561_272_880_620_199_967_519,
     ];
-    let wgk = [
+    #[allow(clippy::excessive_precision)]
+    static ref WGK31: [f64; 16] = [
         0.005_377_479_872_923_348_987_792_051_430_128,
         0.015_007_947_329_316_122_538_374_763_075_807,
         0.025_460_847_326_715_320_186_874_001_019_653,
@@ -278,12 +275,10 @@ where
         0.100_769_845_523_875_595_044_946_662_617_570,
         0.101_330_007_014_791_549_017_374_792_767_493,
     ];
-
-    qk(func, a, b, &xgk, &wgk, &wg)
 }
 
 /// Compute the integral of of `f` from `a` to `b` using
-/// the 41-point gauss-kronrod rules.
+/// the 31-point gauss-kronrod rules.
 ///
 /// # Arguments
 ///
@@ -294,12 +289,16 @@ where
 /// * `resabs` - On return, estimation of the integral of abs(f).
 /// * `resasc` - On return, estimation of integral of abs(f-i/(b-a)), where i is the integral of f.
 ///
-#[allow(clippy::excessive_precision, clippy::too_many_arguments)]
-pub fn qk41<F>(func: F, a: f64, b: f64) -> (f64, f64, f64, f64)
+pub fn qk31<F>(func: F, a: f64, b: f64) -> (f64, f64, f64, f64)
 where
     F: Fn(f64) -> f64,
 {
-    let xgk = [
+    qk(func, a, b, &(*XGK31), &(*WGK31), &(*WG31))
+}
+
+lazy_static! {
+    #[allow(clippy::excessive_precision)]
+    static ref XGK41: [f64; 21] = [
         0.998_859_031_588_277_663_838_315_576_545_863,
         0.993_128_599_185_094_924_786_122_388_471_320,
         0.981_507_877_450_250_259_193_342_994_720_217,
@@ -322,7 +321,8 @@ where
         0.076_526_521_133_497_333_754_640_409_398_838,
         0.000_000_000_000_000_000_000_000_000_000_000,
     ];
-    let wg = [
+    #[allow(clippy::excessive_precision)]
+    static ref WG41: [f64; 10] = [
         0.017_614_007_139_152_118_311_861_962_351_853,
         0.040_601_429_800_386_941_331_039_952_274_932,
         0.062_672_048_334_109_063_569_506_535_187_042,
@@ -334,7 +334,8 @@ where
         0.149_172_986_472_603_746_787_828_737_001_969,
         0.152_753_387_130_725_850_698_084_331_955_098,
     ];
-    let wgk = [
+    #[allow(clippy::excessive_precision)]
+    static ref WGK41: [f64; 21] = [
         0.003_073_583_718_520_531_501_218_293_246_031,
         0.008_600_269_855_642_942_198_661_787_950_102,
         0.014_626_169_256_971_252_983_787_960_308_868,
@@ -357,12 +358,10 @@ where
         0.076_377_867_672_080_736_705_502_835_038_061,
         0.076_600_711_917_999_656_445_049_901_530_102,
     ];
-
-    qk(func, a, b, &xgk, &wgk, &wg)
 }
 
 /// Compute the integral of of `f` from `a` to `b` using
-/// the 51-point gauss-kronrod rules.
+/// the 41-point gauss-kronrod rules.
 ///
 /// # Arguments
 ///
@@ -372,12 +371,17 @@ where
 /// * `abserr` - On return, estimated modulus of absolute error.
 /// * `resabs` - On return, estimation of the integral of abs(f).
 /// * `resasc` - On return, estimation of integral of abs(f-i/(b-a)), where i is the integral of f.
-#[allow(clippy::excessive_precision, clippy::too_many_arguments)]
-pub fn qk51<F>(func: F, a: f64, b: f64) -> (f64, f64, f64, f64)
+///
+pub fn qk41<F>(func: F, a: f64, b: f64) -> (f64, f64, f64, f64)
 where
     F: Fn(f64) -> f64,
 {
-    let xgk = [
+    qk(func, a, b, &(*XGK41), &(*WGK41), &(*WG41))
+}
+
+lazy_static! {
+    #[allow(clippy::excessive_precision)]
+    static ref XGK51: [f64; 26] = [
         0.999_262_104_992_609_834_193_457_486_540_341,
         0.995_556_969_790_498_097_908_784_946_893_902,
         0.988_035_794_534_077_247_637_331_014_577_406,
@@ -405,7 +409,8 @@ where
         0.061_544_483_005_685_078_886_546_392_366_797,
         0.000_000_000_000_000_000_000_000_000_000_000,
     ];
-    let wg = [
+    #[allow(clippy::excessive_precision)]
+    static ref WG51: [f64; 13] = [
         0.011_393_798_501_026_287_947_902_964_113_235,
         0.026_354_986_615_032_137_261_901_815_295_299,
         0.040_939_156_701_306_312_655_623_487_711_646,
@@ -420,7 +425,8 @@ where
         0.122_242_442_990_310_041_688_959_518_945_852,
         0.123_176_053_726_715_451_203_902_873_079_050,
     ];
-    let wgk = [
+    #[allow(clippy::excessive_precision)]
+    static ref WGK51: [f64; 26] = [
         0.001_987_383_892_330_315_926_507_851_882_843,
         0.005_561_932_135_356_713_758_040_236_901_066,
         0.009_473_973_386_174_151_607_207_710_523_655,
@@ -448,12 +454,10 @@ where
         0.061_471_189_871_425_316_661_544_131_965_264,
         0.061_580_818_067_832_935_078_759_824_240_066,
     ];
-
-    qk(func, a, b, &xgk, &wgk, &wg)
 }
 
 /// Compute the integral of of `f` from `a` to `b` using
-/// the 61-point gauss-kronrod rules.
+/// the 51-point gauss-kronrod rules.
 ///
 /// # Arguments
 ///
@@ -463,12 +467,16 @@ where
 /// * `abserr` - On return, estimated modulus of absolute error.
 /// * `resabs` - On return, estimation of the integral of abs(f).
 /// * `resasc` - On return, estimation of integral of abs(f-i/(b-a)), where i is the integral of f.
-#[allow(clippy::excessive_precision, clippy::too_many_arguments)]
-pub fn qk61<F>(func: F, a: f64, b: f64) -> (f64, f64, f64, f64)
+pub fn qk51<F>(func: F, a: f64, b: f64) -> (f64, f64, f64, f64)
 where
     F: Fn(f64) -> f64,
 {
-    let xgk = [
+    qk(func, a, b, &(*XGK51), &(*WGK51), &(*WG51))
+}
+
+lazy_static! {
+    #[allow(clippy::excessive_precision)]
+    static ref XGK61: [f64; 31] = [
         0.999_484_410_050_490_637_571_325_895_705_811,
         0.996_893_484_074_649_540_271_630_050_918_695,
         0.991_630_996_870_404_594_858_628_366_109_486,
@@ -501,7 +509,8 @@ where
         0.051_471_842_555_317_695_833_025_213_166_723,
         0.000_000_000_000_000_000_000_000_000_000_000,
     ];
-    let wg = [
+    #[allow(clippy::excessive_precision)]
+    static ref WG61: [f64; 15] = [
         0.007_968_192_496_166_605_615_465_883_474_674,
         0.018_466_468_311_090_959_142_302_131_912_047,
         0.028_784_707_883_323_369_349_719_179_611_292,
@@ -518,7 +527,8 @@ where
         0.101_762_389_748_405_504_596_428_952_168_554,
         0.102_852_652_893_558_840_341_285_636_705_415,
     ];
-    let wgk = [
+    #[allow(clippy::excessive_precision)]
+    static ref WGK61: [f64; 31] = [
         0.001_389_013_698_677_007_624_551_591_226_760,
         0.003_890_461_127_099_884_051_267_201_844_516,
         0.006_630_703_915_931_292_173_319_826_369_750,
@@ -551,8 +561,24 @@ where
         0.051_426_128_537_459_025_933_862_879_215_781,
         0.051_494_729_429_451_567_558_340_433_647_099,
     ];
+}
 
-    qk(func, a, b, &xgk, &wgk, &wg)
+/// Compute the integral of of `f` from `a` to `b` using
+/// the 61-point gauss-kronrod rules.
+///
+/// # Arguments
+///
+/// * `f` - Function to integrate
+/// * `a` - Lower bound of integration.
+/// * `b` - Upper bound of integration.
+/// * `abserr` - On return, estimated modulus of absolute error.
+/// * `resabs` - On return, estimation of the integral of abs(f).
+/// * `resasc` - On return, estimation of integral of abs(f-i/(b-a)), where i is the integral of f.
+pub fn qk61<F>(func: F, a: f64, b: f64) -> (f64, f64, f64, f64)
+where
+    F: Fn(f64) -> f64,
+{
+    qk(func, a, b, &(*XGK61), &(*WGK61), &(*WG61))
 }
 
 /// Compute the integral of of `f` from `a` to `b` using
@@ -611,9 +637,6 @@ mod test {
 
     #[test]
     fn test_qk15_singularity() {
-        let mut abserr = 0.0;
-        let mut resabs = 0.0;
-        let mut resasc = 0.0;
         let exp_result = 1.555688196612745777e1;
         let exp_abserr = 2.350164577239293706e1;
         let exp_resabs = 1.555688196612745777e1;
@@ -638,9 +661,6 @@ mod test {
 
     #[test]
     fn test_qk15_oscillating() {
-        let mut abserr = 0.0;
-        let mut resabs = 0.0;
-        let mut resasc = 0.0;
         let exp_result = -7.238969575483799046e-1;
         let exp_abserr = 8.760080200939757174e-6;
         let exp_resabs = 1.165564172429140788e0;
@@ -665,9 +685,6 @@ mod test {
 
     #[test]
     fn test_qk21_smooth_pos() {
-        let mut abserr = 0.0;
-        let mut resabs = 0.0;
-        let mut resasc = 0.0;
         let exp_result = 7.716049379303084599E-02;
         let exp_abserr = 9.424302194248481445E-08;
         let exp_resabs = 7.716049379303084599E-02;
@@ -693,9 +710,6 @@ mod test {
 
     #[test]
     fn test_qk21_singularity() {
-        let mut abserr = 0.0;
-        let mut resabs = 0.0;
-        let mut resasc = 0.0;
         let exp_result = 1.799045317938126232E+01;
         let exp_abserr = 2.782360287710622515E+01;
         let exp_resabs = 1.799045317938126232E+01;
@@ -720,9 +734,6 @@ mod test {
 
     #[test]
     fn test_qk21_oscillating() {
-        let mut abserr = 0.0;
-        let mut resabs = 0.0;
-        let mut resasc = 0.0;
         let exp_result = -7.238969575482959717E-01;
         let exp_abserr = 7.999213141433641888E-11;
         let exp_resabs = 1.150829032708484023E+00;
@@ -747,9 +758,6 @@ mod test {
 
     #[test]
     fn test_qk31_smooth_pos() {
-        let mut abserr = 0.0;
-        let mut resabs = 0.0;
-        let mut resasc = 0.0;
         let exp_result = 7.716049382494900855E-02;
         let exp_abserr = 1.713503193600029893E-09;
         let exp_resabs = 7.716049382494900855E-02;
@@ -775,9 +783,6 @@ mod test {
 
     #[test]
     fn test_qk31_singularity() {
-        let mut abserr = 0.0;
-        let mut resabs = 0.0;
-        let mut resasc = 0.0;
         let exp_result = 2.081873305159121657E+01;
         let exp_abserr = 3.296500137482590276E+01;
         let exp_resabs = 2.081873305159121301E+01;
@@ -802,9 +807,6 @@ mod test {
 
     #[test]
     fn test_qk31_oscillating() {
-        let mut abserr = 0.0;
-        let mut resabs = 0.0;
-        let mut resasc = 0.0;
         let exp_result = -7.238969575482959717E-01;
         let exp_abserr = 1.285805464427459261E-14;
         let exp_resabs = 1.158150602093290571E+00;
@@ -829,9 +831,6 @@ mod test {
 
     #[test]
     fn test_qk41_smooth_pos() {
-        let mut abserr = 0.0;
-        let mut resabs = 0.0;
-        let mut resasc = 0.0;
         let exp_result = 7.716049382681375302E-02;
         let exp_abserr = 9.576386660975511224E-11;
         let exp_resabs = 7.716049382681375302E-02;
@@ -857,9 +856,6 @@ mod test {
 
     #[test]
     fn test_qk41_singularity() {
-        let mut abserr = 0.0;
-        let mut resabs = 0.0;
-        let mut resasc = 0.0;
         let exp_result = 2.288677623903126701E+01;
         let exp_abserr = 3.671538820274916048E+01;
         let exp_resabs = 2.288677623903126701E+01;
@@ -884,9 +880,6 @@ mod test {
 
     #[test]
     fn test_qk41_oscillating() {
-        let mut abserr = 0.0;
-        let mut resabs = 0.0;
-        let mut resasc = 0.0;
         let exp_result = -7.238969575482959717E-01;
         let exp_abserr = 1.286535726271015626E-14;
         let exp_resabs = 1.158808363486595328E+00;
@@ -911,9 +904,6 @@ mod test {
 
     #[test]
     fn test_qk51_smooth_pos() {
-        let mut abserr = 0.0;
-        let mut resabs = 0.0;
-        let mut resasc = 0.0;
         let exp_result = 7.716049382708510540E-02;
         let exp_abserr = 1.002079980317363772E-11;
         let exp_resabs = 7.716049382708510540E-02;
@@ -939,9 +929,6 @@ mod test {
 
     #[test]
     fn test_qk51_singularity() {
-        let mut abserr = 0.0;
-        let mut resabs = 0.0;
-        let mut resasc = 0.0;
         let exp_result = 2.449953612016972215E+01;
         let exp_abserr = 3.967771249391228849E+01;
         let exp_resabs = 2.449953612016972215E+01;
@@ -966,9 +953,6 @@ mod test {
 
     #[test]
     fn test_qk51_oscillating() {
-        let mut abserr = 0.0;
-        let mut resabs = 0.0;
-        let mut resasc = 0.0;
         let exp_result = -7.238969575482961938E-01;
         let exp_abserr = 1.285290995039385778E-14;
         let exp_resabs = 1.157687209264406381E+00;
@@ -993,9 +977,6 @@ mod test {
 
     #[test]
     fn test_qk61_smooth_pos() {
-        let mut abserr = 0.0;
-        let mut resabs = 0.0;
-        let mut resasc = 0.0;
         let exp_result = 7.716049382713800753E-02;
         let exp_abserr = 1.566060362296155616E-12;
         let exp_resabs = 7.716049382713800753E-02;
@@ -1021,9 +1002,6 @@ mod test {
 
     #[test]
     fn test_qk61_singularity() {
-        let mut abserr = 0.0;
-        let mut resabs = 0.0;
-        let mut resasc = 0.0;
         let exp_result = 2.583030240976628988E+01;
         let exp_abserr = 4.213750493076978643E+01;
         let exp_resabs = 2.583030240976628988E+01;
@@ -1048,9 +1026,6 @@ mod test {
 
     #[test]
     fn test_qk61_oscillating() {
-        let mut abserr = 0.0;
-        let mut resabs = 0.0;
-        let mut resasc = 0.0;
         let exp_result = -7.238969575482959717E-01;
         let exp_abserr = 1.286438572027470736E-14;
         let exp_resabs = 1.158720854723590099E+00;

@@ -7,7 +7,7 @@ Rust library for numerical integration based on GSL.
 The easiest way to use cyphus-integration is through the builder pattern. To
 construct an integrator, use:
 ```rust
-use cyphus::integration::GaussKronrodIntegratorBuilder;
+use cyphus_integration::prelude::*;
 let gk = GaussKronrodIntegratorBuilder::default()
             .epsabs(0.0)
             .epsrel(1e-3)
@@ -22,7 +22,7 @@ In the above, we are setting the absolute tolerance to `0`, the relative toleran
 
 This builder can also construct a integrator which will handle singularies. For example, suppose we want to integrate `f(x)=x^3 ln(|(x^2-1)(x^2-2)|)`. This function is singular at `x=1` and `x=sqrt(2)`. To let the integrator know this, we use:
 ```rust
-use cyphus::integration::GaussKronrodIntegratorBuilder;
+use cyphus_integration::prelude::*;
 let gk = GaussKronrodIntegratorBuilder::default()
             .epsabs(0.0)
             .epsrel(1e-3)
@@ -38,7 +38,7 @@ assert!((result.val - analytic).abs() < 1e-3);
 ### Using `GaussKronrodIntegrator`
 You can also just use the `GaussKronrodIntegrator` directly:
 ```rust
-use cyphus::integration::GaussKronrodIntegrator;
+use cyphus_integration::prelude::*;
 let gk = GaussKronrodIntegrator{
             epsabs: 0.0,
             epsrel: 1e-3,

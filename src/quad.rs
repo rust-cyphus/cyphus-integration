@@ -4,11 +4,17 @@ use crate::qags::qags;
 use crate::result::{IntegrationResult, IntegrationRetCode};
 
 #[derive(Clone, Debug)]
+/// One-dimensional Gauss-Kronrod integrator.
 pub struct GaussKronrodIntegrator {
+    /// Absolute tolerance.
     pub epsabs: f64,
+    /// Relative tolerance.
     pub epsrel: f64,
+    /// Total number of allowed refinements.
     pub limit: usize,
+    /// Key specifying the fixed-order Gauss-Kronrod method to use.
     pub key: u8,
+    /// Locations of the singular points of the integrand.
     pub singular_points: Vec<f64>,
 }
 
@@ -130,56 +136,69 @@ impl GaussKronrodIntegrator {
     }
 }
 
+/// Builder struct used to construct an integrator with wanted parameters.
 pub struct GaussKronrodIntegratorBuilder {
-    pub epsabs: f64,
-    pub epsrel: f64,
-    pub limit: usize,
-    pub key: u8,
-    pub singular_points: Vec<f64>,
+    /// Absolute tolerance.
+    epsabs: Option<f64>,
+    /// Relative tolerance.
+    epsrel: Option<f64>,
+    /// Total number of allowed refinements.
+    limit: Option<usize>,
+    /// Key specifying the fixed-order Gauss-Kronrod method to use.
+    key: Option<u8>,
+    /// Locations of the singular points of the integrand.
+    singular_points: Option<Vec<f64>>,
 }
 
 impl GaussKronrodIntegratorBuilder {
     pub fn default() -> Self {
         GaussKronrodIntegratorBuilder {
-            epsabs: 1e-8,
-            epsrel: 1e-8,
-            limit: 1000,
-            key: 2,
-            singular_points: vec![],
+            epsabs: None,
+            epsrel: None,
+            limit: None,
+            key: None,
+            singular_points: None,
         }
     }
+    /// Set the absolute tolerance.
     pub fn epsabs(mut self, epsabs: f64) -> Self {
-        self.epsabs = epsabs;
+        self.epsabs = Some(epsabs);
         self
     }
+    /// Set the relative tolerance.
     pub fn epsrel(mut self, epsrel: f64) -> Self {
-        self.epsrel = epsrel;
+        self.epsrel = Some(epsrel);
         self
     }
+    /// Set the total number of allowed refinements.
     pub fn limit(mut self, limit: usize) -> Self {
-        self.limit = limit;
+        self.limit = Some(limit);
         self
     }
+    /// Set the key specifying the fixed-order Gauss-Kronrod method to use.
     pub fn key(mut self, key: u8) -> Self {
-        self.key = key;
+        self.key = Some(key);
         self
     }
+    /// Specify the locations of the singular points of the integrand.
     pub fn singular_points(mut self, singular_points: Vec<f64>) -> Self {
-        self.singular_points = singular_points;
+        let mut sp = singular_points;
         // Sort break-points and delete duplicates
-        self.singular_points
-            .sort_by(|a, b| a.partial_cmp(b).unwrap());
-        self.singular_points.dedup_by(|a, b| (*a).eq(b));
+        sp.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sp.dedup_by(|a, b| (*a).eq(b));
+        self.singular_points = Some(sp);
 
         self
     }
-    pub fn build(&self) -> GaussKronrodIntegrator {
+    /// Build the integrator.
+    pub fn build(self) -> GaussKronrodIntegrator {
+        let sp = self.singular_points.unwrap_or(vec![]);
         GaussKronrodIntegrator {
-            epsabs: self.epsabs,
-            epsrel: self.epsrel,
-            limit: self.limit,
-            key: self.key,
-            singular_points: self.singular_points.clone(),
+            epsabs: self.epsabs.unwrap_or(1e-8),
+            epsrel: self.epsrel.unwrap_or(1e-8),
+            limit: self.limit.unwrap_or(1000),
+            key: self.key.unwrap_or(2),
+            singular_points: sp,
         }
     }
 }

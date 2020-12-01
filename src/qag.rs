@@ -21,7 +21,6 @@ use crate::result::{IntegrationResult, IntegrationRetCode};
 use crate::utils::subinterval_too_small;
 use crate::workspace::IntegrationWorkSpace;
 
-#[allow(clippy::too_many_arguments)]
 pub fn qag<F>(
     f: F,
     a: f64,

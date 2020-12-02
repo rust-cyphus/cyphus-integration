@@ -18,62 +18,106 @@
 
 use crate::qags::qags;
 use crate::result::IntegrationResult;
+use num::Float;
 
 /// Integrate a function over an infinite, semi-infinit or finite interval by
 /// transforming the integrand to a new function defined over a finite interval
 /// (if nesseccary) and using `qags`.
-#[allow(clippy::too_many_arguments)]
-pub fn qagi<F>(
+pub fn qagi<T, F>(
     f: F,
-    a: f64,
-    b: f64,
-    epsabs: f64,
-    epsrel: f64,
+    a: T,
+    b: T,
+    epsabs: T,
+    epsrel: T,
     limit: usize,
-    key: u8,
-) -> IntegrationResult
+    nodes: &[T],
+    kronrod: &[T],
+    gauss: &[T],
+) -> IntegrationResult<T>
 where
-    F: Fn(f64) -> f64,
+    T: Float,
+    F: Fn(T) -> T,
 {
-    let sign = if a < b { 1.0 } else { -1.0 };
+    let sign = if a < b { T::one() } else { -T::one() };
     let (aa, bb) = if a < b { (a, b) } else { (b, a) };
 
-    if bb >= f64::INFINITY && aa <= f64::NEG_INFINITY {
+    if bb >= T::infinity() && aa <= T::neg_infinity() {
         // Integrate from -inf to inf by transforming the integrand using:
         // f(t) -> [f( (1 - t) / t ) + f( -(1 - t) / t)] / t^2
-        let transformed = |t: f64| -> f64 {
-            let x = (1.0 - t) / t;
+        let transformed = |t: T| -> T {
+            let x = (T::one() - t) / t;
             sign * (f(x) + f(-x)) / (t * t)
         };
-        qags(transformed, 0.0, 1.0, epsabs, epsrel, limit, key)
-    } else if bb >= f64::INFINITY && aa > f64::NEG_INFINITY {
+        qags(
+            transformed,
+            T::zero(),
+            T::one(),
+            epsabs,
+            epsrel,
+            limit,
+            nodes,
+            kronrod,
+            gauss,
+        )
+    } else if bb >= T::infinity() && aa > T::neg_infinity() {
         // Integrate from a to inf by transforming the integrand using:
         // f(t) -> f( a + (1 - t) / t ) / t^2
-        let transformed = |t: f64| -> f64 {
-            let x = aa + (1.0 - t) / t;
+        let transformed = |t: T| -> T {
+            let x = aa + (T::one() - t) / t;
             sign * f(x) / (t * t)
         };
-        qags(transformed, 0.0, 1.0, epsabs, epsrel, limit, key)
-    } else if aa <= f64::NEG_INFINITY && bb < f64::INFINITY {
+        qags(
+            transformed,
+            T::zero(),
+            T::one(),
+            epsabs,
+            epsrel,
+            limit,
+            nodes,
+            kronrod,
+            gauss,
+        )
+    } else if aa <= T::neg_infinity() && bb < T::infinity() {
         // Integrate from -inf to a by transforming the integrand using:
         // f(t) -> f( a + (1 - t) / t ) / t^2
-        let transformed = |t: f64| -> f64 {
-            let x = bb - (1.0 - t) * t.recip();
+        let transformed = |t: T| -> T {
+            let x = bb - (T::one() - t) * t.recip();
             sign * f(x) * t.powi(2).recip()
         };
-        qags(transformed, 0.0, 1.0, epsabs, epsrel, limit, key)
+        qags(
+            transformed,
+            T::zero(),
+            T::one(),
+            epsabs,
+            epsrel,
+            limit,
+            nodes,
+            kronrod,
+            gauss,
+        )
     } else {
-        let transformed = |t: f64| -> f64 {
-            let x = t * bb + aa * (1.0 - t);
+        let transformed = |t: T| -> T {
+            let x = t * bb + aa * (T::one() - t);
             sign * f(x) * (bb - aa)
         };
-        qags(transformed, 0.0, 1.0, epsabs, epsrel, limit, key)
+        qags(
+            transformed,
+            T::zero(),
+            T::one(),
+            epsabs,
+            epsrel,
+            limit,
+            nodes,
+            kronrod,
+            gauss,
+        )
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::qk::QK15;
     use crate::test_utils::*;
 
     #[test]
@@ -81,7 +125,17 @@ mod tests {
         let exp_result = -3.616892186127022568E-01;
         let exp_abserr = 3.016716913328831851E-06;
 
-        let result = qagi(f455, 0.0, f64::INFINITY, 0.0, 1e-3, 1000, 1);
+        let result = qagi(
+            f455,
+            0.0,
+            f64::INFINITY,
+            0.0,
+            1e-3,
+            1000,
+            &QK15.0,
+            &QK15.1,
+            &QK15.2,
+        );
 
         test_rel(result.val, exp_result, 1e-14);
         test_rel(result.err, exp_abserr, 1e-5);
@@ -94,7 +148,17 @@ mod tests {
 
         let alpha = 5.0;
         let f = |x| f15(x, alpha);
-        let result = qagi(f, 0.0, f64::INFINITY, 0.0, 1e-7, 1000, 1);
+        let result = qagi(
+            f,
+            0.0,
+            f64::INFINITY,
+            0.0,
+            1e-7,
+            1000,
+            &QK15.0,
+            &QK15.1,
+            &QK15.2,
+        );
 
         test_rel(result.val, exp_result, 1e-14);
         test_rel(result.err, exp_abserr, 1e-5);
@@ -107,7 +171,17 @@ mod tests {
 
         let alpha = 1.0;
         let f = |x| f16(x, alpha);
-        let result = qagi(f, 99.9, f64::INFINITY, 1e-7, 0.0, 1000, 1);
+        let result = qagi(
+            f,
+            99.9,
+            f64::INFINITY,
+            1e-7,
+            0.0,
+            1000,
+            &QK15.0,
+            &QK15.1,
+            &QK15.2,
+        );
 
         test_rel(result.val, exp_result, 1e-14);
         test_rel(result.err, exp_abserr, 1e-5);
@@ -121,7 +195,17 @@ mod tests {
         let alpha = 1.0;
         let f = |x: f64| (-x - x * x).exp();
 
-        let result = qagi(f, f64::NEG_INFINITY, f64::INFINITY, 1e-7, 0.0, 1000, 1);
+        let result = qagi(
+            f,
+            f64::NEG_INFINITY,
+            f64::INFINITY,
+            1e-7,
+            0.0,
+            1000,
+            &QK15.0,
+            &QK15.1,
+            &QK15.2,
+        );
 
         test_rel(result.val, exp_result, 1e-14);
         test_rel(result.err, exp_abserr, 1e-5);
@@ -135,7 +219,17 @@ mod tests {
         let alpha = 1.0;
         let f = |x: f64| (alpha * x).exp();
 
-        let result = qagi(f, f64::NEG_INFINITY, 1.0, 1e-7, 0.0, 1000, 1);
+        let result = qagi(
+            f,
+            f64::NEG_INFINITY,
+            1.0,
+            1e-7,
+            0.0,
+            1000,
+            &QK15.0,
+            &QK15.1,
+            &QK15.2,
+        );
 
         test_rel(result.val, exp_result, 1e-14);
         test_rel(result.err, exp_abserr, 1e-5);

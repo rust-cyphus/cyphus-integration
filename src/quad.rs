@@ -1,24 +1,30 @@
+use crate::gausskronrod::kronrod;
 use crate::qagi::qagi;
 use crate::qagp::qagp;
 use crate::qags::qags;
 use crate::result::{IntegrationResult, IntegrationRetCode};
+use num::Float;
 
 #[derive(Clone, Debug)]
 /// One-dimensional Gauss-Kronrod integrator.
-pub struct GaussKronrodIntegrator {
+pub struct GaussKronrodIntegrator<T: Float> {
     /// Absolute tolerance.
-    pub epsabs: f64,
+    pub epsabs: T,
     /// Relative tolerance.
-    pub epsrel: f64,
+    pub epsrel: T,
     /// Total number of allowed refinements.
     pub limit: usize,
-    /// Key specifying the fixed-order Gauss-Kronrod method to use.
-    pub key: u8,
     /// Locations of the singular points of the integrand.
-    pub singular_points: Vec<f64>,
+    pub singular_points: Vec<T>,
+    /// Gauss-Kronrod nodes
+    nodes: Vec<T>,
+    /// Kronrod weights
+    kronrod: Vec<T>,
+    /// Gauss weights
+    gauss: Vec<T>,
 }
 
-impl GaussKronrodIntegrator {
+impl<T: Float> GaussKronrodIntegrator<T> {
     /// Integrate a function `f` over the interval `a` to `b`, returning
     /// an `IntegrationResult` object. For infinite bounds, use
     /// f64::INFINITY.
@@ -46,9 +52,9 @@ impl GaussKronrodIntegrator {
     /// let res = gk.integrate(f, f64::NEG_INFINITY, f64::INFINITY);
     /// assert!((res.val - 1.0).abs() < 1e-8);
     /// ```
-    pub fn integrate<F>(&self, f: F, a: f64, b: f64) -> IntegrationResult
+    pub fn integrate<F>(&self, f: F, a: T, b: T) -> IntegrationResult<T>
     where
-        F: Fn(f64) -> f64,
+        F: Fn(T) -> T,
     {
         // Check if we have infinite endpoints
         if a.is_infinite() || b.is_infinite() {
@@ -61,7 +67,9 @@ impl GaussKronrodIntegrator {
                     self.epsabs,
                     self.epsrel,
                     self.limit,
-                    self.key,
+                    &self.nodes,
+                    &self.kronrod,
+                    &self.gauss,
                 );
                 let mut res2 = IntegrationResult::new();
                 let mut res3 = IntegrationResult::new();
@@ -73,7 +81,9 @@ impl GaussKronrodIntegrator {
                         self.epsabs,
                         self.epsrel,
                         self.limit,
-                        self.key,
+                        &self.nodes,
+                        &self.kronrod,
+                        &self.gauss,
                     );
                     res3 = qagi(
                         &f,
@@ -82,7 +92,9 @@ impl GaussKronrodIntegrator {
                         self.epsabs,
                         self.epsrel,
                         self.limit,
-                        self.key,
+                        &self.nodes,
+                        &self.kronrod,
+                        &self.gauss,
                     );
                 } else if a.is_infinite() {
                     res2 = qagi(
@@ -92,7 +104,9 @@ impl GaussKronrodIntegrator {
                         self.epsabs,
                         self.epsrel,
                         self.limit,
-                        self.key,
+                        &self.nodes,
+                        &self.kronrod,
+                        &self.gauss,
                     );
                 } else {
                     res3 = qagi(
@@ -102,7 +116,9 @@ impl GaussKronrodIntegrator {
                         self.epsabs,
                         self.epsrel,
                         self.limit,
-                        self.key,
+                        &self.nodes,
+                        &self.kronrod,
+                        &self.gauss,
                     );
                 }
                 IntegrationResult {
@@ -112,10 +128,30 @@ impl GaussKronrodIntegrator {
                     nevals: res1.nevals + res2.nevals + res3.nevals,
                 }
             } else {
-                qagi(f, a, b, self.epsabs, self.epsrel, self.limit, self.key)
+                qagi(
+                    f,
+                    a,
+                    b,
+                    self.epsabs,
+                    self.epsrel,
+                    self.limit,
+                    &self.nodes,
+                    &self.kronrod,
+                    &self.gauss,
+                )
             }
         } else if self.singular_points.is_empty() {
-            qags(f, a, b, self.epsabs, self.epsrel, self.limit, self.key)
+            qags(
+                f,
+                a,
+                b,
+                self.epsabs,
+                self.epsrel,
+                self.limit,
+                &self.nodes,
+                &self.kronrod,
+                &self.gauss,
+            )
         } else {
             let mut singular_points = vec![a];
             singular_points.reserve(self.singular_points.len() + 1);
@@ -130,43 +166,45 @@ impl GaussKronrodIntegrator {
                 self.epsabs,
                 self.epsrel,
                 self.limit,
-                self.key,
+                &self.nodes,
+                &self.kronrod,
+                &self.gauss,
             )
         }
     }
 }
 
 /// Builder struct used to construct an integrator with wanted parameters.
-pub struct GaussKronrodIntegratorBuilder {
+pub struct GaussKronrodIntegratorBuilder<T: Float> {
     /// Absolute tolerance.
-    epsabs: Option<f64>,
+    epsabs: Option<T>,
     /// Relative tolerance.
-    epsrel: Option<f64>,
+    epsrel: Option<T>,
     /// Total number of allowed refinements.
     limit: Option<usize>,
-    /// Key specifying the fixed-order Gauss-Kronrod method to use.
-    key: Option<u8>,
     /// Locations of the singular points of the integrand.
-    singular_points: Option<Vec<f64>>,
+    singular_points: Option<Vec<T>>,
+    /// Order of gauss-kronrod rule
+    order: Option<usize>,
 }
 
-impl GaussKronrodIntegratorBuilder {
+impl<T: Float> GaussKronrodIntegratorBuilder<T> {
     pub fn default() -> Self {
         GaussKronrodIntegratorBuilder {
             epsabs: None,
             epsrel: None,
             limit: None,
-            key: None,
             singular_points: None,
+            order: None,
         }
     }
     /// Set the absolute tolerance.
-    pub fn epsabs(mut self, epsabs: f64) -> Self {
+    pub fn epsabs(mut self, epsabs: T) -> Self {
         self.epsabs = Some(epsabs);
         self
     }
     /// Set the relative tolerance.
-    pub fn epsrel(mut self, epsrel: f64) -> Self {
+    pub fn epsrel(mut self, epsrel: T) -> Self {
         self.epsrel = Some(epsrel);
         self
     }
@@ -175,13 +213,13 @@ impl GaussKronrodIntegratorBuilder {
         self.limit = Some(limit);
         self
     }
-    /// Set the key specifying the fixed-order Gauss-Kronrod method to use.
-    pub fn key(mut self, key: u8) -> Self {
-        self.key = Some(key);
+    /// Set the order of the gauss-kronrod rule
+    pub fn order(mut self, order: usize) -> Self {
+        self.order = Some(order);
         self
     }
     /// Specify the locations of the singular points of the integrand.
-    pub fn singular_points(mut self, singular_points: Vec<f64>) -> Self {
+    pub fn singular_points(mut self, singular_points: Vec<T>) -> Self {
         let mut sp = singular_points;
         // Sort break-points and delete duplicates
         sp.sort_by(|a, b| a.partial_cmp(b).unwrap());
@@ -191,14 +229,142 @@ impl GaussKronrodIntegratorBuilder {
         self
     }
     /// Build the integrator.
-    pub fn build(self) -> GaussKronrodIntegrator {
+    pub fn build(self) -> GaussKronrodIntegrator<T> {
+        let order = self.order.unwrap_or(7);
+
+        let (ns, ks, gs) = match order {
+            7 => (
+                crate::qk::QK15
+                    .0
+                    .to_vec()
+                    .iter()
+                    .map(|x| T::from(*x).unwrap())
+                    .collect::<Vec<T>>(),
+                crate::qk::QK15
+                    .1
+                    .to_vec()
+                    .iter()
+                    .map(|x| T::from(*x).unwrap())
+                    .collect::<Vec<T>>(),
+                crate::qk::QK15
+                    .2
+                    .to_vec()
+                    .iter()
+                    .map(|x| T::from(*x).unwrap())
+                    .collect::<Vec<T>>(),
+            ),
+            10 => (
+                crate::qk::QK21
+                    .0
+                    .to_vec()
+                    .iter()
+                    .map(|x| T::from(*x).unwrap())
+                    .collect::<Vec<T>>(),
+                crate::qk::QK21
+                    .1
+                    .to_vec()
+                    .iter()
+                    .map(|x| T::from(*x).unwrap())
+                    .collect::<Vec<T>>(),
+                crate::qk::QK21
+                    .2
+                    .to_vec()
+                    .iter()
+                    .map(|x| T::from(*x).unwrap())
+                    .collect::<Vec<T>>(),
+            ),
+            15 => (
+                crate::qk::QK31
+                    .0
+                    .to_vec()
+                    .iter()
+                    .map(|x| T::from(*x).unwrap())
+                    .collect::<Vec<T>>(),
+                crate::qk::QK31
+                    .1
+                    .to_vec()
+                    .iter()
+                    .map(|x| T::from(*x).unwrap())
+                    .collect::<Vec<T>>(),
+                crate::qk::QK31
+                    .2
+                    .to_vec()
+                    .iter()
+                    .map(|x| T::from(*x).unwrap())
+                    .collect::<Vec<T>>(),
+            ),
+            20 => (
+                crate::qk::QK41
+                    .0
+                    .to_vec()
+                    .iter()
+                    .map(|x| T::from(*x).unwrap())
+                    .collect::<Vec<T>>(),
+                crate::qk::QK41
+                    .1
+                    .to_vec()
+                    .iter()
+                    .map(|x| T::from(*x).unwrap())
+                    .collect::<Vec<T>>(),
+                crate::qk::QK41
+                    .2
+                    .to_vec()
+                    .iter()
+                    .map(|x| T::from(*x).unwrap())
+                    .collect::<Vec<T>>(),
+            ),
+            25 => (
+                crate::qk::QK51
+                    .0
+                    .to_vec()
+                    .iter()
+                    .map(|x| T::from(*x).unwrap())
+                    .collect::<Vec<T>>(),
+                crate::qk::QK51
+                    .1
+                    .to_vec()
+                    .iter()
+                    .map(|x| T::from(*x).unwrap())
+                    .collect::<Vec<T>>(),
+                crate::qk::QK51
+                    .2
+                    .to_vec()
+                    .iter()
+                    .map(|x| T::from(*x).unwrap())
+                    .collect::<Vec<T>>(),
+            ),
+            30 => (
+                crate::qk::QK61
+                    .0
+                    .to_vec()
+                    .iter()
+                    .map(|x| T::from(*x).unwrap())
+                    .collect::<Vec<T>>(),
+                crate::qk::QK61
+                    .1
+                    .to_vec()
+                    .iter()
+                    .map(|x| T::from(*x).unwrap())
+                    .collect::<Vec<T>>(),
+                crate::qk::QK61
+                    .2
+                    .to_vec()
+                    .iter()
+                    .map(|x| T::from(*x).unwrap())
+                    .collect::<Vec<T>>(),
+            ),
+            _ => kronrod(order),
+        };
+
         let sp = self.singular_points.unwrap_or(vec![]);
         GaussKronrodIntegrator {
-            epsabs: self.epsabs.unwrap_or(1e-8),
-            epsrel: self.epsrel.unwrap_or(1e-8),
+            epsabs: self.epsabs.unwrap_or(T::from(1e-8).unwrap()),
+            epsrel: self.epsrel.unwrap_or(T::from(1e-8).unwrap()),
             limit: self.limit.unwrap_or(1000),
-            key: self.key.unwrap_or(2),
             singular_points: sp,
+            nodes: ns,
+            kronrod: ks,
+            gauss: gs,
         }
     }
 }
@@ -216,7 +382,7 @@ mod tests {
         let gk = GaussKronrodIntegratorBuilder::default()
             .epsabs(0.0)
             .epsrel(1e-3)
-            .key(1)
+            .order(7)
             .build();
         let result = gk.integrate(f455, 0.0, f64::INFINITY);
 
@@ -232,7 +398,7 @@ mod tests {
         let gk = GaussKronrodIntegratorBuilder::default()
             .epsabs(0.0)
             .epsrel(1e-7)
-            .key(1)
+            .order(7)
             .build();
 
         let f = |x| f15(x, 5.0);
@@ -250,7 +416,7 @@ mod tests {
         let gk = GaussKronrodIntegratorBuilder::default()
             .epsabs(1e-7)
             .epsrel(0.0)
-            .key(1)
+            .order(7)
             .build();
 
         let alpha = 1.0;
@@ -269,7 +435,7 @@ mod tests {
         let gk = GaussKronrodIntegratorBuilder::default()
             .epsabs(1e-3)
             .epsrel(0.0)
-            .key(1)
+            .order(7)
             .build();
 
         let f = |x: f64| (-x - x * x).exp();
@@ -288,7 +454,7 @@ mod tests {
         let gk = GaussKronrodIntegratorBuilder::default()
             .epsabs(1e-7)
             .epsrel(0.0)
-            .key(1)
+            .order(7)
             .build();
 
         let f = |x: f64| (1.0 * x).exp();
@@ -311,7 +477,7 @@ mod tests {
             .epsabs(0.0)
             .epsrel(1e-3)
             .singular_points(points)
-            .key(2)
+            .order(10)
             .limit(1000)
             .build();
         let result = gk.integrate(f, 0.0, 3.0);

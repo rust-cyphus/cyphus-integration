@@ -16,24 +16,28 @@
 // along with this program; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 
-use crate::qk::fixed_order_gauss_kronrod;
+use crate::qk::qk;
 use crate::result::{IntegrationResult, IntegrationRetCode};
 use crate::utils::subinterval_too_small;
 use crate::workspace::IntegrationWorkSpace;
+use num::Float;
 
-pub fn qag<F>(
+pub fn qag<F, T>(
     f: F,
-    a: f64,
-    b: f64,
-    epsabs: f64,
-    epsrel: f64,
+    a: T,
+    b: T,
+    epsabs: T,
+    epsrel: T,
     limit: usize,
-    key: u8,
-) -> IntegrationResult
+    nodes: &[T],
+    kronrod: &[T],
+    gauss: &[T],
+) -> IntegrationResult<T>
 where
-    F: Fn(f64) -> f64,
+    T: Float,
+    F: Fn(T) -> T,
 {
-    let mut result = IntegrationResult::new();
+    let mut result = IntegrationResult::<T>::new();
 
     // Roundoff detection counters
     let mut roundoff_type1: usize = 0;
@@ -44,15 +48,19 @@ where
     workspace.alist[0] = a;
     workspace.blist[0] = b;
 
+    f64::EPSILON;
+
     // Check the tolerances
-    if epsabs <= 0.0 && (epsrel < 50.0 * f64::EPSILON || epsrel < 0.5e-28) {
+    if epsabs <= T::zero()
+        && (epsrel < T::from(50).unwrap() * T::epsilon() || epsrel < T::from(0.5e-28).unwrap())
+    {
         result.code = IntegrationRetCode::BadTol;
         result.issue_warning(Some(&[epsabs, epsrel]));
         return result;
     }
 
     // Perform the first integration
-    let (val, err, resabs, resasc) = fixed_order_gauss_kronrod(&f, a, b, key);
+    let (val, err, resabs, resasc) = qk(&f, a, b, nodes, kronrod, gauss);
     result.val = val;
     result.err = err;
     workspace.rlist[0] = result.val;
@@ -63,13 +71,13 @@ where
     let mut tolerance = epsabs.max(epsrel * result.val.abs());
     // need IEEE rounding here to match original QUADPACK behavior
     // NOTE: GSL uses a volatile variable for extended precision registers. Should we do the same?
-    let round_off = 50.0 * f64::EPSILON * resabs;
+    let round_off = T::from(50).unwrap() * T::epsilon() * resabs;
 
     if result.err <= round_off && result.err > tolerance {
         result.code = IntegrationRetCode::RoundOffFirstIter;
         result.issue_warning(None);
         return result;
-    } else if (result.err <= tolerance && result.err != resasc) || result.err.abs() < f64::EPSILON {
+    } else if (result.err <= tolerance && result.err != resasc) || result.err.abs() < T::epsilon() {
         return result;
     } else if limit == 1 {
         result.code = IntegrationRetCode::OneIterNotEnough;
@@ -85,23 +93,25 @@ where
         let (a_i, b_i, r_i, e_i) = workspace.recieve();
 
         let a1 = a_i;
-        let b1 = 0.5 * (a_i + b_i);
+        let b1 = T::from(0.5).unwrap() * (a_i + b_i);
         let a2 = b1;
         let b2 = b_i;
 
-        let (area1, error1, _, resasc1) = fixed_order_gauss_kronrod(&f, a1, b1, key);
-        let (area2, error2, _, resasc2) = fixed_order_gauss_kronrod(&f, a2, b2, key);
+        let (area1, error1, _, resasc1) = qk(&f, a1, b1, nodes, kronrod, gauss);
+        let (area2, error2, _, resasc2) = qk(&f, a2, b2, nodes, kronrod, gauss);
 
         let area12 = area1 + area2;
         let error12 = error1 + error2;
 
-        errsum += error12 - e_i;
-        area += area12 - r_i;
+        errsum = errsum + error12 - e_i;
+        area = area + area12 - r_i;
 
         if resasc1 != error1 && resasc2 != error2 {
             let delta = r_i - area12;
 
-            if delta.abs() <= 1e-5 * area12.abs() && error12 >= 0.99 * e_i {
+            if delta.abs() <= T::from(1e-5).unwrap() * area12.abs()
+                && error12 >= T::from(0.99).unwrap() * e_i
+            {
                 roundoff_type1 += 1;
             }
             if iter >= 10 && error12 > e_i {
@@ -147,6 +157,7 @@ where
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::qk;
     use crate::test_utils::*;
 
     #[test]
@@ -157,12 +168,32 @@ mod test {
         let exp_result = 7.716049382715854665E-02;
         let exp_abserr = 6.679384885865053037E-12;
 
-        let result = qag(f, 0.0, 1.0, 0.0, 1e-10, 1000, 1);
+        let result = qag(
+            f,
+            0.0,
+            1.0,
+            0.0,
+            1e-10,
+            1000,
+            &qk::QK15.0,
+            &qk::QK15.1,
+            &qk::QK15.2,
+        );
 
         test_rel(result.val, exp_result, 1e-15);
         test_rel(result.err, exp_abserr, 1e-6);
 
-        let result = qag(f, 1.0, 0.0, 0.0, 1e-10, 1000, 1);
+        let result = qag(
+            f,
+            1.0,
+            0.0,
+            0.0,
+            1e-10,
+            1000,
+            &qk::QK15.0,
+            &qk::QK15.1,
+            &qk::QK15.2,
+        );
 
         test_rel(result.val, -exp_result, 1e-15);
         test_rel(result.err, exp_abserr, 1e-6);
@@ -173,7 +204,17 @@ mod test {
         let alpha = 1.3;
         let f = |x| f3(x, alpha);
 
-        let result = qag(f, 0.3, 2.71, 1e-14, 0.0, 1000, 3);
+        let result = qag(
+            f,
+            0.3,
+            2.71,
+            1e-14,
+            0.0,
+            1000,
+            &qk::QK31.0,
+            &qk::QK31.1,
+            &qk::QK31.2,
+        );
 
         assert!(
             result.code == IntegrationRetCode::RoundOff
@@ -186,7 +227,17 @@ mod test {
         let alpha = 2.0;
         let f = |x| f16(x, alpha);
 
-        let result = qag(f, -1.0, 1.0, 1e-14, 0.0, 1000, 5);
+        let result = qag(
+            f,
+            -1.0,
+            1.0,
+            1e-14,
+            0.0,
+            1000,
+            &qk::QK51.0,
+            &qk::QK51.1,
+            &qk::QK51.2,
+        );
 
         assert!(result.code == IntegrationRetCode::BadIntegrand);
     }
@@ -196,7 +247,17 @@ mod test {
         let alpha = 1.0;
         let f = |x| f16(x, alpha);
 
-        let result = qag(f, -1.0, 1.0, 1e-14, 0.0, 1000, 6);
+        let result = qag(
+            f,
+            -1.0,
+            1.0,
+            1e-14,
+            0.0,
+            1000,
+            &qk::QK61.0,
+            &qk::QK61.1,
+            &qk::QK61.2,
+        );
         assert!(result.code == IntegrationRetCode::TooManyIters);
     }
 }

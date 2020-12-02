@@ -16,40 +16,42 @@
 // along with this program; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 
+use num::Float;
+
 /// Workspace for adaptive integrators
-pub struct IntegrationWorkSpace {
+pub struct IntegrationWorkSpace<T: Float> {
     pub size: usize,
     pub nrmax: usize,
     pub i: usize,
     pub maximum_level: usize,
-    pub alist: Vec<f64>,
-    pub blist: Vec<f64>,
-    pub rlist: Vec<f64>,
-    pub elist: Vec<f64>,
+    pub alist: Vec<T>,
+    pub blist: Vec<T>,
+    pub rlist: Vec<T>,
+    pub elist: Vec<T>,
     pub order: Vec<usize>,
     pub level: Vec<usize>,
 }
 
-impl IntegrationWorkSpace {
-    pub fn new(limit: usize) -> IntegrationWorkSpace {
+impl<T: Float> IntegrationWorkSpace<T> {
+    pub fn new(limit: usize) -> IntegrationWorkSpace<T> {
         IntegrationWorkSpace {
             size: 0,
             nrmax: 0,
             i: 0,
             maximum_level: 0,
-            alist: vec![0.0; limit],
-            blist: vec![0.0; limit],
-            rlist: vec![0.0; limit],
-            elist: vec![0.0; limit],
+            alist: vec![T::zero(); limit],
+            blist: vec![T::zero(); limit],
+            rlist: vec![T::zero(); limit],
+            elist: vec![T::zero(); limit],
             order: vec![0; limit],
             level: vec![0; limit],
         }
     }
-    pub fn recieve(&self) -> (f64, f64, f64, f64) {
+    pub fn recieve(&self) -> (T, T, T, T) {
         let i = self.i;
         (self.alist[i], self.blist[i], self.rlist[i], self.elist[i])
     }
-    pub fn append_interval(&mut self, a: f64, b: f64, area: f64, error: f64) {
+    pub fn append_interval(&mut self, a: T, b: T, area: T, error: T) {
         let inew = self.size;
         self.alist[inew] = a;
         self.blist[inew] = b;
@@ -59,7 +61,7 @@ impl IntegrationWorkSpace {
         self.level[inew] = 0;
         self.size += 1;
     }
-    pub fn update(&mut self, point1: (f64, f64, f64, f64), point2: (f64, f64, f64, f64)) {
+    pub fn update(&mut self, point1: (T, T, T, T), point2: (T, T, T, T)) {
         let (a1, b1, area1, error1) = point1;
         let (a2, b2, area2, error2) = point2;
 
@@ -125,11 +127,11 @@ impl IntegrationWorkSpace {
         self.nrmax = 0;
         self.i = self.order[0];
     }
-    pub fn sum_results(&self) -> f64 {
+    pub fn sum_results(&self) -> T {
         self.rlist
             .iter()
             .take(self.size)
-            .fold(0.0, |acc, x| acc + *x)
+            .fold(T::zero(), |acc, x| acc + *x)
     }
     pub fn sort(&mut self) {
         let last = self.size - 1;
@@ -218,31 +220,4 @@ impl IntegrationWorkSpace {
         }
         self.i = self.order[0];
     }
-}
-
-/// Workspace for QAWS integrator
-struct IntegrationQawsTable<T> {
-    alpha: T,
-    beta: T,
-    mu: i32,
-    nu: i32,
-    ri: Vec<T>,
-    rj: Vec<T>,
-    rg: Vec<T>,
-    rh: Vec<T>,
-}
-
-enum IntegrationQawoEnum {
-    Cosine,
-    Sine,
-}
-
-/// Workspace for QAWO integrator
-struct IntegrationQawoTable<T> {
-    n: usize,
-    omega: T,
-    l: T,
-    par: T,
-    sine: IntegrationQawoEnum,
-    chebmo: Vec<T>,
 }

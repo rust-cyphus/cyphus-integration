@@ -17,39 +17,44 @@
 // Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 
 use crate::extrap::ExtrapolationTable;
-use crate::qk::fixed_order_gauss_kronrod;
+use crate::qk::qk;
 use crate::result::{IntegrationResult, IntegrationRetCode};
 use crate::utils::{subinterval_too_small, test_positivity};
 use crate::workspace::IntegrationWorkSpace;
+use num::Float;
 
-#[allow(clippy::too_many_arguments)]
-pub fn qags<F>(
+pub fn qags<T, F>(
     f: F,
-    a: f64,
-    b: f64,
-    epsabs: f64,
-    epsrel: f64,
+    a: T,
+    b: T,
+    epsabs: T,
+    epsrel: T,
     limit: usize,
-    key: u8,
-) -> IntegrationResult
+    nodes: &[T],
+    kronrod: &[T],
+    gauss: &[T],
+) -> IntegrationResult<T>
 where
-    F: Fn(f64) -> f64,
+    T: Float,
+    F: Fn(T) -> T,
 {
-    let mut result = IntegrationResult::new();
+    let mut result = IntegrationResult::<T>::new();
 
     let mut workspace = IntegrationWorkSpace::new(limit);
     workspace.alist[0] = a;
     workspace.blist[0] = b;
 
     // Test on accuracy
-    if epsabs <= 0.0 && (epsrel < 50.0 * f64::EPSILON || epsrel < f64::EPSILON) {
+    if epsabs <= T::zero()
+        && (epsrel < T::from(50).unwrap() * T::epsilon() || epsrel < T::epsilon())
+    {
         result.code = IntegrationRetCode::BadTol;
         result.issue_warning(Some(&[epsabs, epsrel]));
         return result;
     }
 
     // Perform the first integration
-    let (val, err, resabs, resasc) = fixed_order_gauss_kronrod(&f, a, b, key);
+    let (val, err, resabs, resasc) = qk(&f, a, b, nodes, kronrod, gauss);
     result.val = val;
     result.err = err;
 
@@ -59,11 +64,11 @@ where
 
     let mut tolerance = epsabs.max(epsrel * result.val.abs());
 
-    if result.err <= 100.0 * f64::EPSILON * resabs && result.err > tolerance {
+    if result.err <= T::from(100).unwrap() * T::epsilon() * resabs && result.err > tolerance {
         result.code = IntegrationRetCode::RoundOffFirstIter;
         result.issue_warning(None);
         return result;
-    } else if (result.err <= tolerance && result.err != resasc) || result.err == 0.0 {
+    } else if (result.err <= tolerance && result.err != resasc) || result.err.is_zero() {
         return result;
     } else if limit == 1 {
         result.code = IntegrationRetCode::OneIterNotEnough;
@@ -78,7 +83,7 @@ where
     let mut area = result.val;
     let mut errsum = result.err;
     let mut res_ext = result.val;
-    let mut err_ext = f64::MAX;
+    let mut err_ext = T::max_value();
     let positive_integrand = test_positivity(result.val, resabs);
 
     let mut extrapolate: bool = false;
@@ -88,11 +93,11 @@ where
     let mut roundoff_type3: usize = 0;
 
     let mut error_type2: bool = false;
-    let mut error_over_large_intervals = 0.0;
-    let mut ertest = 0.0;
+    let mut error_over_large_intervals = T::zero();
+    let mut ertest = T::zero();
 
     let mut ktmin: usize = 0;
-    let mut correc = 0.0;
+    let mut correc = T::zero();
 
     let mut iter = 1;
 
@@ -103,29 +108,31 @@ where
         let current_level = workspace.level[workspace.i] + 1;
 
         let a1 = a_i;
-        let b1 = 0.5 * (a_i + b_i);
+        let b1 = T::from(0.5).unwrap() * (a_i + b_i);
         let a2 = b1;
         let b2 = b_i;
 
         iter += 1;
 
-        let (area1, error1, _, resasc1) = fixed_order_gauss_kronrod(&f, a1, b1, key);
-        let (area2, error2, _, resasc2) = fixed_order_gauss_kronrod(&f, a2, b2, key);
+        let (area1, error1, _, resasc1) = qk(&f, a1, b1, nodes, kronrod, gauss);
+        let (area2, error2, _, resasc2) = qk(&f, a2, b2, nodes, kronrod, gauss);
 
         let area12 = area1 + area2;
         let error12 = error1 + error2;
         let last_e_i = e_i;
 
         // Improve previous approximations to the integral and test for accuracy.
-        errsum += error12 - e_i;
-        area += area12 - r_i;
+        errsum = errsum + error12 - e_i;
+        area = area + area12 - r_i;
 
         tolerance = epsabs.max(epsrel * area.abs());
 
         if resasc1 != error1 && resasc2 != error2 {
             let delta = r_i - area12;
 
-            if delta.abs() <= 1e-5 * area12.abs() && error12 >= 0.99 * e_i {
+            if delta.abs() <= T::from(1e-5).unwrap() * area12.abs()
+                && error12 >= T::from(0.99).unwrap() * e_i
+            {
                 if !extrapolate {
                     roundoff_type1 += 1;
                 } else {
@@ -180,10 +187,10 @@ where
             continue;
         }
 
-        error_over_large_intervals -= last_e_i;
+        error_over_large_intervals = error_over_large_intervals - last_e_i;
 
         if current_level < workspace.maximum_level {
-            error_over_large_intervals += error12;
+            error_over_large_intervals = error_over_large_intervals + error12;
         }
 
         if !extrapolate {
@@ -201,12 +208,12 @@ where
         // Perform extrapolation
         table.append(area);
 
-        let mut abseps = 0.0;
+        let mut abseps = T::zero();
         let reseps = table.extrapolate(&mut abseps);
 
         ktmin += 1;
 
-        if ktmin > 5 && err_ext < errsum * 1e-3 {
+        if ktmin > 5 && err_ext < errsum * T::from(1e-3).unwrap() {
             result.code = IntegrationRetCode::DivergeSlowConverge;
         }
         if abseps < err_ext {
@@ -241,7 +248,7 @@ where
     result.val = res_ext;
     result.err = err_ext;
 
-    if err_ext == f64::MAX {
+    if err_ext == T::max_value() {
         result.val = workspace.sum_results();
         result.err = errsum;
         return result;
@@ -249,12 +256,12 @@ where
 
     if result.code == IntegrationRetCode::TooManyIters || error_type2 {
         if error_type2 {
-            err_ext += correc;
+            err_ext = err_ext + correc;
         }
         if result.code == IntegrationRetCode::Success {
             result.code = IntegrationRetCode::BadIntegrand;
         }
-        if res_ext != 0.0 && area != 0.0 {
+        if !res_ext.is_zero() && !area.is_zero() {
             if err_ext * res_ext.abs().recip() > errsum * area.abs().recip() {
                 result.val = workspace.sum_results();
                 result.err = errsum;
@@ -264,7 +271,7 @@ where
             result.val = workspace.sum_results();
             result.err = errsum;
             return result;
-        } else if area == 0.0 {
+        } else if area.is_zero() {
             return result;
         }
     }
@@ -272,7 +279,7 @@ where
     // Test on divergence
     {
         let max_area = res_ext.abs().max(area.abs());
-        if !positive_integrand && max_area < 1e-2 * resabs {
+        if !positive_integrand && max_area < T::from(1e-2).unwrap() * resabs {
             return result;
         }
     }
@@ -280,7 +287,7 @@ where
     {
         let ratio = res_ext * area.recip();
 
-        if ratio < 1e-2 || ratio > 100.0 || errsum > area.abs() {
+        if ratio < T::from(1e-2).unwrap() || ratio > T::from(100).unwrap() || errsum > area.abs() {
             result.code = IntegrationRetCode::Other;
         }
     }
@@ -290,6 +297,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::qk::QK21;
     use crate::test_utils::*;
 
     #[test]
@@ -300,12 +308,12 @@ mod tests {
         let exp_result = 7.716049382715789440E-02;
         let exp_abserr = 2.216394961010438404E-12;
 
-        let result = qags(f, 0.0, 1.0, 0.0, 1e-10, 1000, 2);
+        let result = qags(f, 0.0, 1.0, 0.0, 1e-10, 1000, &QK21.0, &QK21.1, &QK21.2);
 
         test_rel(result.val, exp_result, 1e-15);
         test_rel(result.err, exp_abserr, 1e-6);
 
-        let result = qags(f, 1.0, 0.0, 0.0, 1e-10, 1000, 2);
+        let result = qags(f, 1.0, 0.0, 0.0, 1e-10, 1000, &QK21.0, &QK21.1, &QK21.2);
 
         test_rel(result.val, -exp_result, 1e-15);
         test_rel(result.err, exp_abserr, 1e-6);
@@ -319,12 +327,12 @@ mod tests {
         let exp_result = -5.908755278982136588E+03;
         let exp_abserr = 1.299646281053874554E-10;
 
-        let result = qags(f, 1.0, 1000.0, 1e-7, 0.0, 1000, 2);
+        let result = qags(f, 1.0, 1000.0, 1e-7, 0.0, 1000, &QK21.0, &QK21.1, &QK21.2);
 
         test_rel(result.val, exp_result, 1e-15);
         test_rel(result.err, exp_abserr, 1e-3);
 
-        let result = qags(f, 1000.0, 1.0, 1e-7, 0.0, 1000, 2);
+        let result = qags(f, 1000.0, 1.0, 1e-7, 0.0, 1000, &QK21.0, &QK21.1, &QK21.2);
 
         test_rel(result.val, -exp_result, 1e-15);
         test_rel(result.err, exp_abserr, 1e-3);

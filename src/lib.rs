@@ -1,4 +1,5 @@
 #![allow(clippy::excessive_precision, clippy::too_many_arguments, dead_code)]
+#![feature(const_option)]
 
 pub(crate) mod extrap;
 pub(crate) mod gausskronrod;

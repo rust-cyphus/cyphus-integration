@@ -1,4 +1,5 @@
 use log::warn;
+use num::Float;
 
 /// Codes for the result of an integration
 #[derive(Debug, PartialEq, Eq)]
@@ -29,53 +30,64 @@ pub enum IntegrationRetCode {
 
 /// Structure for the result of an integration
 #[derive(Debug)]
-pub struct IntegrationResult {
+pub struct IntegrationResult<T: Float> {
     /// Value of the integration
-    pub val: f64,
+    pub val: T,
     /// Estimated error of the integration
-    pub err: f64,
+    pub err: T,
     /// Return code
     pub code: IntegrationRetCode,
     /// Number of function evaluations
     pub nevals: usize,
 }
 
-impl IntegrationResult {
+impl<T: Float> IntegrationResult<T> {
     /// Construct a new integration results struct with zeros for values
     /// and "Success" for code.
-    pub(crate) fn new() -> IntegrationResult {
+    pub(crate) fn new() -> IntegrationResult<T> {
         IntegrationResult {
-            val: 0.0,
-            err: 0.0,
+            val: T::zero(),
+            err: T::zero(),
             code: IntegrationRetCode::Success,
             nevals: 0,
         }
     }
-    pub(crate) fn issue_warning(&self, args: Option<&[f64]>) {
+    pub(crate) fn issue_warning(&self, args: Option<&[T]>) {
+        /*
         match self.code {
             IntegrationRetCode::Success => {}
-            IntegrationRetCode::OneIterNotEnough => warn!("A maximum of one iteration was insufficient"),
+            IntegrationRetCode::OneIterNotEnough => {
+                warn!("A maximum of one iteration was insufficient")
+            }
             IntegrationRetCode::RoundOffFirstIter => {
                 warn!("cannot reach tolerance because of round-off error on first attempt")
             }
             IntegrationRetCode::TooManyIters => warn!("Number of iterations was insufficient"),
-            IntegrationRetCode::RoundOff => warn!("Cannot reach tolerance because of round-off
-             error"),
+            IntegrationRetCode::RoundOff => warn!(
+                "Cannot reach tolerance because of round-off
+             error"
+            ),
             IntegrationRetCode::BadIntegrand => {
                 warn!("Bad integrand behavior found in the integration interval")
             }
             IntegrationRetCode::RoundOffExtrapTable => {
                 warn!("Round-off error detected in the extrapolation table")
             }
-            IntegrationRetCode::DivergeSlowConverge => warn!("Integral is divergent, or slowly convergent"),
+            IntegrationRetCode::DivergeSlowConverge => {
+                warn!("Integral is divergent, or slowly convergent")
+            }
             IntegrationRetCode::BadTol => {
-                warn!("Invalid input tolerances. Tolerance cannot be achieved with given \
-                epsabs and epsrel: {:?}", args)
+                warn!(
+                    "Invalid input tolerances. Tolerance cannot be achieved with given \
+                epsabs and epsrel: {:?}",
+                    args
+                )
             }
             IntegrationRetCode::InvalidArg => {
-                warn!("Invalid argument(s). Args = {:?}", args)
+                warn!("Invalid argument(s). Args = {}", args)
             }
             IntegrationRetCode::Other => warn!("Could not integrate function"),
         }
+        */
     }
 }
